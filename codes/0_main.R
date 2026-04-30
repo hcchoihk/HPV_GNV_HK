@@ -1,20 +1,21 @@
-### Evaluate the cost-effectiveness of gender-neutral vaccination (GNV) of HPV vaccination
+### Evaluate the cost-effectiveness of HPV gender-neutral vaccination (GNV)
 
-### Flow 
+### Flow
 # 1. HPV infection and cervical cancer
-# 1.1. Obtain parameter sets via calibration to empirical data of cervical cancer incidence, HPV prevalence, and transition (progression/regression) of pre-cancerour health states.
-# 1.2. Use the transmission dynamic model to obtain the time-varying force-of-infection (FOI) and HPV incidence across the time horizon following HPV infection
-# 1.3. Obtain the changes in cervical cancer incidence following HPV vaccination and cervical screening across time horizon 
-# Note1. Outcomes of HPV vaccination on HPV infection and cervical cancer have been studied previously. The respective outcomes are saved in '.RData' file(s).
+# 1.1. Obtain parameter sets by calibrating to empirical data on cervical cancer incidence, HPV prevalence, and transitions (progression/regression) between precancerous health states.
+# 1.2. Use the transmission dynamic model to obtain the time-varying force of infection (FOI) and HPV incidence over the time horizon following HPV vaccination.
+# 1.3. Estimate changes in cervical cancer incidence following HPV vaccination and cervical screening over the time horizon.
+# Note 1. The outcomes of HPV vaccination on HPV infection and cervical cancer have been studied previously. The corresponding results are saved in '.RData' file(s).
 # 2. HPV-related non-cervical cancer
-# 2.1. Use a three-component function to link genital HPV incidence (without HPV vaccination) to incidence non-cervical cancer. 
-# Infer parameters for each cancer and for each set of genital HPV incidence generated in (1), via calibration to empirical cancer incidence.
-# 2.2. Estimate the changes in incidence based on the changes in HPV incidence after HPV vaccination (which was generated in (1)).
-# 3. Cost-effectiveness analysis of comparing different vaccination strategies
-# 2dFOV, two-dose female-only vaccination; 2F2M, GNV of two-dose schedule for both girls and boys; 1F1M, GNV of one-dose schedule for both girls and boys; 2F1M, GNV of two-dose schedule for girls and one-dose schedule for boys
+# 2.1. Use a three-component function to link genital HPV incidence (without HPV vaccination) to the incidence of non-cervical cancer.
+# Infer parameters for each cancer and for each set of genital HPV incidence generated in (1) by calibrating to empirical cancer incidence data.
+# 2.2. Estimate changes in incidence based on changes in HPV incidence after HPV vaccination, as generated in (1).
+# 3. Cost-effectiveness analysis comparing different vaccination strategies
+# 2dFOV: two-dose female-only vaccination; 2F2M: gender-neutral vaccination (GNV) with a two-dose schedule for both girls and boys; 1F1M: GNV with a one-dose schedule for both girls and boys; 2F1M: GNV with a two-dose schedule for girls and a one-dose schedule for boys
 
 
-## load packages
+
+## check packages
 check_installed_packages = installed.packages()
 check_package_vec = c("openxlsx", "psych", "pracma", "ggplot2", "gplots", "vioplot")
 check_package_YN = (check_package_vec %in% check_installed_packages)
@@ -22,7 +23,7 @@ if (any(!check_package_YN)){
 	stop( sprintf("The following package(s) is/are not available:\n%s\nPlease first install the corresponding package(s).", paste(check_package_vec[which(!check_package_YN)], collapse=", ")) )
 }
 
-## load library
+## load packages
 library(openxlsx)
 library(psych) # for correlation plot for MCMC
 library(pracma) # pracma::pchip interpolation
@@ -77,8 +78,8 @@ source( paste0("codes/", fname_fun_MCMC) )
 
 ## load data
 # population data
-# Lifetable data
-# cancer incidence data, referring to HKCaR and other sources
+# lifetable data
+# cancer incidence data, referring to cancer registry and other sources
 # relative contribution of 9vHPV types
 # HPV incidence from the calibrated model
 
