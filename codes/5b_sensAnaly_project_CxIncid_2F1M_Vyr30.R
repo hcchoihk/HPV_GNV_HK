@@ -87,9 +87,9 @@ vec_HPV_set = 1:100; # PSA
 
 # parameter estimation
 n_delay = 1;
-n_scaling = 2;
+scaling_age = c(1, 4, 8); # knots of the age to change beta; include 1 for age group 10-14 
+n_scaling = 3;
 n_scaling_age = 0;
-scaling_age = 7;
 n_RRprog = 0;
 n_set = 3;
 paraest_setting = c(n_delay=n_delay, n_scaling=n_scaling, n_scaling_age=n_scaling_age, scaling_age=scaling_age, n_RRprog=n_RRprog, n_set=n_set);

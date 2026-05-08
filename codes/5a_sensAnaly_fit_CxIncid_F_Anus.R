@@ -5,7 +5,7 @@
 
 ### file names of outputs
 output_suffix = outputdate_string;
-output_suffix = paste0(output_suffix, "_fit_CxInc_F_VV"); # <- change
+output_suffix = paste0(output_suffix, "_sensAnaly", "_fit_CxInc_F_Anus"); # <- change
 # "F"/"M"; "Vagina_Vulva (VV)", "OPC", "Anus", "Cervix", "Penis"
 
 
@@ -116,14 +116,17 @@ ncomb_sex_CxInc = length(fnameout_suffix); # number of comb of sex and CxInc
 
 ## parameter estimation
 n_delay = 1; # either 1 for age-independent, or same as n_scaling for separate delay functions depending on age
-n_scaling = 2; # 2, scaling age=7
+scaling_age = c(1, 4, 8); # knots of the age to change beta; include 1 for age group 10-14 
+n_scaling = 3;
 n_scaling_age = 0;
 n_RRprog = 0; # relative ratio of progression for HPV-non16 vs HPV-16
 n_set = 3;
-scaling_age = 7;
 paraest_setting = c(n_delay=n_delay, n_scaling=n_scaling, n_scaling_age=n_scaling_age, scaling_age=scaling_age, n_RRprog=n_RRprog, n_set=n_set);
 x0 = c(rep(c(2.5, 2.5), n_delay), rep(0.005, n_scaling), rep(median(idx_HPVincid_outcomeAgegp), n_scaling_age), rep(1, n_RRprog));
 x0 = rep(x0, n_set)
+
+x0_input_otherset_YN = TRUE;
+x0_directuse_YN = TRUE
 
 runMCMC_YN = TRUE;
 MCMC_reflective_update_YN = 1 # if not reflective, just let the proposal out of range
@@ -227,15 +230,22 @@ for (isex in sex_vec_index){
 		
 		time1 = Sys.time();
 		print( CxInc_name_short )
+
 		for (iset in vec_HPV_set){
 			print( sprintf("iset: %d", iset) )
 
 			paramInput = list(MCMC_reflective_update_YN=MCMC_reflective_update_YN)
-			
+
 			# ** set seed for random number generation
 			if (exists("seed_use")){
 				paramInput = append(paramInput, list(seed_use=seed_use))
 			}
+
+			if (x0_input_otherset_YN){
+				paramInput = append(paramInput, list(x0=as.numeric(x0_input_otherset_read[[CxInc_name_short]][iset,])
+					, startingPoint_directuse_YN = x0_directuse_YN))
+			}
+
 
 			HPVincid_read = as.numeric(HPVincid_temp[iset, ]);
 			

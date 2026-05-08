@@ -3,9 +3,9 @@
 # Description
 This repository contains data and R scripts that are used to generate the results for the cost-effectiveness analysis of HPV gender-neutral vaccination (GNV) in Hong Kong.
 
-# Authors
+# Author
 
-Contributors names and contact info
+Contributor name and contact info
 
 Horace Choi hcchoi@hku.hk
 

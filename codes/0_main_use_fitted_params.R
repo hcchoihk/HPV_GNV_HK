@@ -36,7 +36,7 @@ update_outputdate = function(shortDate=TRUE) {
 
 ## the main folder / directory to hold the codes and data
 # put the codes and data
-folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # <-- change this
+folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # ** <-- change this
 
 cat( sprintf("'folder_main: %s'", folder_main) )
 if (!dir.exists(folder_main)){
@@ -56,7 +56,7 @@ setwd(folder_main)
 # An alterative method is to run for-loop in parallel, e.g., future.apply (this may require substantial computer memory)
 # better to use an absolute path when running in parallel
 
-runMCMC_nonHPVCx_YN = TRUE;
+runMCMC_nonHPVCx_YN = FALSE;  # <-- Skip inferring parameters for non-cervical cancers. Use the parameter sets that were previously fitted.
 run_parallel_YN = TRUE;
 
 seed_use = 1234;
@@ -91,6 +91,9 @@ load( paste0("data/", fname_dataload) )
 ## outputs 
 output_folder = "output/primary/" # "" if the same directory
 outputdate_string = update_outputdate(short=TRUE)
+
+	outputdate_string = "260430" 
+
 if (!dir.exists(output_folder)){ # create folder 
 	writeLines( sprintf("create output_folder: %s", output_folder) )
 	dir.create(output_folder)
@@ -231,4 +234,5 @@ for (herdProt_GWart_YN in herdProt_GWart_YN_vec){
 	source( 'codes/3b_comp_2F1M_1dGNV.R') 
 
 } # for- herdProt_GWart_YN  
+
 

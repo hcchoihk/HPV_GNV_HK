@@ -26,7 +26,6 @@ if (!run_parallel_YN){ browser() }
 
 ## settings
 
-
 # HPV incidence setting
 HPVincid_agegp_org = c(seq(10, 85, by=5), 85); # age endpt
 HPVincid_agegp_new = c(seq(10, 85, by=5), 85); # grouping in CxInc_agegp
@@ -233,6 +232,10 @@ for (isex in sex_vec_index){
 
 			paramInput = list(MCMC_reflective_update_YN=MCMC_reflective_update_YN)
 
+			# ** set seed for random number generation
+			if (exists("seed_use")){
+				paramInput = append(paramInput, list(seed_use=seed_use))
+			}
 
 			HPVincid_read = as.numeric(HPVincid_temp[iset, ]);
 			
@@ -282,7 +285,7 @@ for (isex in sex_vec_index){
 				}
 				
 				save.image(RDataname_estoutput)
-				nullout = replicate(5, function(x) {gc(reset=TURE); Sys.sleep(1)})
+				nullout = replicate(5, function(x) {gc(reset=TRUE); Sys.sleep(1)})
 			} # iset_tempsave
 
 

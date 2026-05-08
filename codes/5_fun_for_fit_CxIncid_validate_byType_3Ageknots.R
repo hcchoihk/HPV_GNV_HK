@@ -3,7 +3,12 @@
 ## get mid-points given a vector of end-points
 get_midpt = function(endpt){
 	return( (head(endpt,-1) + tail(endpt,-1))/2 );
-}
+} # get_midpt
+
+# whether a point is between another two points
+is_between = function(pt2, pt1, pt3){
+	return( (pt1 <= pt2 & pt2 <= pt3) | (pt1 >= pt2 & pt2 >= pt3) )
+} # is_between
 
 
 ## log of poisson distribution
@@ -77,6 +82,7 @@ interpolate_outcome_agegp = function(outcome_org, agegp_org, agegp_new){
 	# the outcome may be negative if not define the bound
 	# so set the outcome at last end pt
 	# matlab: interp1(agegp_midpt_org, outcome_org, agegp_midpt_new, 'pchip'); 
+
 	output = spline(x=agegp_midpt_org, y=outcome_org, xout=agegp_midpt_new)$y;
 	run_pchip_YN = TRUE;
 	if (run_pchip_YN & ('pracma' %in% installed.packages())>0){
@@ -102,7 +108,7 @@ fun_beta_scaling_map = function(beta_scaling, scaling_age, agegp_count_num=16){
 			scaling_age = c(1,7);
 			# scaling_age = c(1,agegp_count_num);
 		} else if (num_beta_scaling==3){ # 3 discrete beta_scaling
-			scaling_age = c(1,7,16)
+			scaling_age = c(1, 4, 8) # at age 10, 25, 45
 		} else if (num_beta_scaling==4){ # 4 beta scaling 
 			scaling_age = c(1,7,11,16)
 		} else if (num_beta_scaling==8){ # 8 beta scaling 
@@ -117,8 +123,11 @@ fun_beta_scaling_map = function(beta_scaling, scaling_age, agegp_count_num=16){
 			beta_scaling_map[ (max(scaling_age)+1):agegp_count_num ] = beta_scaling[2]
 		}
 	} else if (num_beta_scaling==3){ # 3 discrete beta_scaling
-		beta_scaling_map = spline(x=scaling_age, y=beta_scaling, xout=xout_age)$y
-	
+		# beta_scaling_map = spline(x=scaling_age, y=beta_scaling, xout=xout_age)$y
+		beta_scaling_map = pracma::pchip(xi=scaling_age, yi=beta_scaling, x=xout_age) # should be the same to spline if there are only 3 points
+		if (max(scaling_age)<agegp_count_num){
+			beta_scaling_map[ (max(scaling_age)+1):agegp_count_num ] = beta_scaling[num_beta_scaling]
+		}
 	} else if (num_beta_scaling==4){ # 4 beta scaling 
 		beta_scaling_map = spline(x=scaling_age, y=beta_scaling, xout=xout_age)$y
 	
@@ -171,6 +180,7 @@ generate_CxOutcome_rate = function(gamdist_par, beta_scaling, HPVincid_gp, agegp
 		ii_agegp_end_cumsum = cumsum(ii_agegp_end);
 
 		CxInc_temp = infectCount[jj] * apply(pgamma(cbind(ii_agegp_start_cumsum,ii_agegp_end_cumsum), shape=gamdist_par[1], scale=gamdist_par[2], lower.tail=TRUE),1, diff);;
+
 		CxInc_temp = beta_scaling_map[jj] * CxInc_temp
 
 		# consider background deaths, some may die before cancer develops
@@ -314,22 +324,37 @@ fun_out_CxInc_100k_LL = function(x, extInput) {
 		CxInc_data_LL = CxInc_data[match(idx_CxInc_agegpNew_calibrate, idx_CxInc_agegpNew_data)]
 	}
 
-	# beta_scaling_temp = x[2*paraest_setting['n_delay'] + (1:paraest_setting['n_scaling'])];
-		
+
+
 	# assume that the first few incidence should be non-decreasing
 	CxInc_constraint = c(FALSE
 		, any(diff(CxInc_model[1:6])<0)
 		);
 	if (any(CxInc_constraint)){ return(wrongValue) }
+	
+	
+	# incidence should be non-negative
+	CxInc_constraint = c(FALSE
+		, any(CxInc_model<0)
+		);
+	if (any(CxInc_constraint)){ return(wrongValue) }
+	
+	# pRC_model should be non-negative
+	pRC_model_constraint = c(FALSE
+		, any(pRC_model<0)
+		);
+	if (any(pRC_model_constraint)){ return(wrongValue) }	
+		
+
 
 	x_set = sapply(1:n_set, simplify=FALSE, function(ii) x[n_paramfit_noRRprog*(ii-1) + (1:n_paramfit_noRRprog)])# x_set directly input for each set of iHPV
 
 	
-
 	maxratio_beta_scaling = 1000;
 	beta_constraint = c(FALSE
-		, sapply(x_set, function(xx) xx[4]/xx[3])>maxratio_beta_scaling
-		, sapply(x_set, function(xx) xx[4]/xx[3])<(1/maxratio_beta_scaling)
+		, sapply(x_set, function(xx) xx[5]/xx[3])>maxratio_beta_scaling
+		, sapply(x_set, function(xx) xx[5]/xx[3])<(1/maxratio_beta_scaling)
+		, sapply(x_set, function(xx) !is_between(xx[4], xx[3], xx[5]))
 	)
 	if (any(beta_constraint)){ 
 		return(wrongValue);
@@ -340,16 +365,6 @@ fun_out_CxInc_100k_LL = function(x, extInput) {
 	if (any(delay_constraint)){ return(wrongValue) }
 	
 	
-	if (FALSE){ # constraint on the proportion of 9vHR cases
-	p9vHR_model = Reduce(sum, CxInc_model_byType[1:3])/Reduce(sum, CxInc_model_byType)	
-	p9vHR_constraint =c(FALSE
-		# reject if beyond the range, similar to a flat prior with range
-		, p9vHR_model < pRC_all9vHR_inonCeCx[2] 
-		, p9vHR_model > pRC_all9vHR_inonCeCx[3]
-	)
-	if (any(p9vHR_constraint)){ return(wrongValue) }
-	}
-
 	# logLikelihood, (i) excluding constant and (ii) constant only
 	out_temp_CxInc = sum(logpoisspdf_noC(CxInc_data_LL, CxInc_model))
 	out_temp_CxInc_pRC = logmultinompdf_noC(ks=pRC_all9vHR_inonCeCx, ps=pRC_model);
@@ -413,7 +428,7 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 	n_delay = paraest_setting[['n_delay']];
 	n_scaling = paraest_setting[['n_scaling']];
 	n_scaling_age = paraest_setting[['n_scaling_age']];
-	scaling_age = paraest_setting[['scaling_age']];
+	scaling_age = unlist(paraest_setting[ grep("^scaling_age", names(paraest_setting), value=TRUE) ]); # paraest_setting[['scaling_age']]; # the age 
 	n_RRprog = paraest_setting[['n_RRprog']];
 	n_set = paraest_setting[['n_set']];
 	n_paramfit = n_set *(2*n_delay + n_scaling + n_scaling_age + n_RRprog);
@@ -431,6 +446,7 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 
 	MCMC_reflective_update_YN = TRUE; # default for function_MCMC
 	
+	startingPoint_directuse_YN = FALSE;
 
 	# extra input
 	if (!is.null(paramInput)){
@@ -442,6 +458,9 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 			MCMC_reflective_update_YN = paramInput[["MCMC_reflective_update_YN"]]
 			print( sprintf('MCMC_reflective_update_YN: %s', ifelse(MCMC_reflective_update_YN, "Yes", "No")) ); print("")
 		}
+		if ("startingPoint_directuse_YN" %in% names(paramInput)){
+			startingPoint_directuse_YN = paramInput[["startingPoint_directuse_YN"]]
+		}
 		if ("seed_use" %in% names(paramInput)){
 			seed_use = paramInput[["seed_use"]]
 		}
@@ -449,7 +468,7 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 	if (!exists("seed_use")){ 
 		seed_use = 1234
 	}
-	
+
 
 	# xdata in fun_gen_CxInc_100k
 	# HPVincid_gp: in the range 0-1
@@ -492,15 +511,14 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 		}
 		
 	} else{
-
 		# select the approach for MCMC
 		# 1, fmcmc::MCMC; 2, adaptMCMC::MCMC; 3, single-updating or block-updating
 		MCMC_method = 3;
 
-	
 		# adaptive MCMC
 		# fmcmc::MCMC, kernel-ram, with control of seed
 		# adaptmcmc::MCMC, with output of log.p, set.seed before running the line
+		
 		
 		mcmc_nsteps = 20000;
 		mcmc_burnin = 1000;
@@ -509,7 +527,6 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 		rowidx_extract = (mcmc_nsteps+mcmc_burnin)-((mcmc_extract-1):0);
 		rowidx_extract = mcmc_nsteps+(1:mcmc_extract);
 		
-
 		if (MCMC_method==1 || MCMC_method==2){
 			mcmc_param_multiplier = c(rep(1,2*n_delay), rep(1,n_scaling))
 			fmcmc_out_CxInc_100k_LL = function(x, extInput) -fun_out_CxInc_100k_LL(x/mcmc_param_multiplier, extInput);
@@ -541,20 +558,29 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 			# adaptMCMC::MCMC
 		
 			adaptMCMC_scale = c(rep(c(0.8,0.6),n_delay), rep(0.1, n_scaling), rep(1, n_scaling_age))
-			set.seed(seed_use)
+			# adaptMCMC_scale = c(rep(c(0.05,0.05),n_delay), rep(0.05, n_scaling), rep(1, n_scaling_age))
+			set.seed(seed_use) # set.seed before the lines
 			# change init to x0_mcmc with multiplers
+#			out_mcmc = adaptMCMC::MCMC(fmcmc_out_CxInc_100k_LL, n=mcmc_nsteps, init=x0, extInput=extInput, adapt=TRUE, acc.rate=0.234, scale=adaptMCMC_scale, showProgressBar=FALSE)
 			out_mcmc = adaptMCMC::MCMC(fmcmc_out_CxInc_100k_LL, n=2*mcmc_nsteps, init=x0_mcmc, extInput=extInput, adapt=TRUE, acc.rate=0.234, scale=adaptMCMC_scale, showProgressBar=FALSE)
 
+			# output_return = apply(out_mcmc$samples[rowidx_extract,],2, function(x) quantile(x, probs=c(0.5, 0.025,0.975, 0.05,0.95, 0.1,0.9)));
+		
 			out_logL_par = max(out_mcmc$log.p[rowidx_extract])
 			output_par = out_mcmc$samples[which(out_mcmc$log.p==out_logL_par)[1], ]
 			output_par = output_par * mcmc_param_multiplier
 
 			out_mcmc_samples_extract = out_mcmc$samples[rowidx_extract, ]
+			# out_mcmc_samples_extract = t(apply(out_mcmc_samples_extract, 1, function(x) x*mcmc_param_multiplier))
 			out_mcmc_samples_extract = out_mcmc_samples_extract * t(replicate(nrow(out_mcmc_samples_extract), mcmc_param_multiplier))
 			
 			
 			out_mcmc_logL = out_mcmc$log.p[rowidx_extract]
 			
+			# output_par = out_mcmc$samples[which.max(out_mcmc$log.p), ]
+		
+			# plot( coda::as.mcmc(out_mcmc$samples[rowidx_extract,]) )
+			# plot( adaptMCMC::convert.to.coda(out_mcmc) )
 			
 		# MCMC_method==2
 		} else if (MCMC_method==3){
@@ -575,7 +601,7 @@ fun_estParam_HPVincid_to_Cx_byType = function(HPVincid_data, agegp_HPVincid, CxI
 				block = rep(list(c(list(1:2), as.list(2*n_delay+(1:n_scaling)))), n_set)
 				block = do.call(c, sapply(1:n_set, simplify=FALSE, function(x) lapply(block[[x]], function(y) (x-1)*(2*n_delay+n_scaling+n_RRprog) + y )))
 
-				out_mcmc = function_MCMC_block(fun_logLikelihood=fmcmc_out_CxInc_100k_LL, LB=lb, UB=ub, startingPoint=x0, numStepsPerParameter=mcmc_burnin+mcmc_extract, minProbAccept=minProbAccept, maxProbAccept=maxProbAccept, stepSTD=stepSTD, block=block, extInput_logL=extInput, print_updating_YN=TRUE, randomSeed=seed_use, reflective_update_YN=MCMC_reflective_update_YN)
+				out_mcmc = function_MCMC_block(fun_logLikelihood=fmcmc_out_CxInc_100k_LL, LB=lb, UB=ub, startingPoint=x0, numStepsPerParameter=mcmc_burnin+mcmc_extract, minProbAccept=minProbAccept, maxProbAccept=maxProbAccept, stepSTD=stepSTD, block=block, extInput_logL=extInput, print_updating_YN=TRUE, randomSeed=seed_use, reflective_update_YN=MCMC_reflective_update_YN, startingPoint_directuse_YN=startingPoint_directuse_YN)
 			}
 						
 			rowidx_extract = n_paramfit*(1:(mcmc_burnin+mcmc_extract)) # seq(from=n_paramfit, by=n_paramfit, length.out=mcmc_extract)

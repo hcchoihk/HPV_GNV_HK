@@ -1,19 +1,17 @@
-# to estimate the CE including non-cervical HPV-related cervical cancers
+# Estimate the CE of including HPV-related non-cervical cancers
 
 # update the projected changes in nonCeCx incidence 
 # folder_proj_nonCeCx, projCxInc_output_date, fname_proj_nonCeCx_base
 
-# update the vaccination scenarios
-
-
-library(openxlsx) # write.xlsx
-repmat = pracma::repmat
-
+# update vaccination scenarios
 
 xVdur_boys_1M = 20; # 20 or 30   # <-- check this
+run_2F1M_YN = TRUE;     # <-- check this
+# herdProt_GWart_YN;  # controlled outside the script
+
 
 ### load data
-# Load PSA summary data for cervical cancer output (from C++)
+# Load PSA summary data for cervical cancer outputs which accounts for cervical screening (from C++)
 # structure - data_PSAsumm_list, data_PSAsumm_noS_list - [[iVdur]][[iVC]][[iPSA]]
 suffix_base_loaddata = "2F1M"    ## <- change, e.g., GNV, 2F1M, Vyr30
 load( gsub("(/){2,}", "/", paste(folder_main, sprintf("data/CEA_CeCxScr_PSAsumm_data_%s.RData", suffix_base_loaddata), sep="/")) )
@@ -21,7 +19,7 @@ load( gsub("(/){2,}", "/", paste(folder_main, sprintf("data/CEA_CeCxScr_PSAsumm_
 load( gsub("(/){2,}", "/", paste(folder_main, sprintf("data/CEA_data_HPVincid_gwarts_%s.RData", suffix_base_loaddata), sep="/")) )
 
 
-# load proj_CxInc of non-cervical cancer
+# Load projected incidence of non-cervical cancers following HPV vaccination
 folder_proj_nonCeCx_base = suffix_base_loaddata
 # folder_proj_nonCeCx_base = "XXX"     # <-- change if needed
 projCxInc_output_date = outputdate_string
@@ -30,7 +28,7 @@ fname_proj_nonCeCx_base = sprintf("projCxInc_VC85%%d_age1212_dur%%d_%%s_%s.xlsx"
 
 
 # folder for noMaleCx_FOV, no vaccine uptake for female - account for MSM
-folder_proj_noMaleCxFOV_base = "noMaleCx"    ## <- change, e.g., GNV, 2F1M, Vyr30
+folder_proj_noMaleCxFOV_base = "noMaleCx"    ## <- change if needed
 projCxInc_noMaleCxFOV_output_date = outputdate_string
 folder_proj_noMaleCxFOV = gsub("(/){2,}","/", paste(output_folder_proj_CxInc, folder_proj_noMaleCxFOV_base, "/", sep="/"));
 fname_proj_noMaleCxFOV_base = sprintf("projCxInc_VC0%%d_age1212_dur%%d_%%s_%s.xlsx", projCxInc_noMaleCxFOV_output_date); # VC_boy (0, 25, 50, 85), Vdur (20, 100), nonCeCx (6 types); each xlsx file contains sheets for each PSA
@@ -47,20 +45,19 @@ dir.create(output_folder_CEA_new, showWarnings = TRUE)
 ## settings
 # whether to consider herd protection for genital warts (sensitivity analysis)
 # default is TRUE, set at FALSE for sensitivity analysis
-herdProt_GWart_YN = TRUE;     # <-- check this 
 if (herdProt_GWart_YN==FALSE){
 	print( "No herd effect on genital warts" )
 	print( "confirm before running" )
 	# browser()
 
-	# if there is no herd effect, vaccinated people may also be protected after vaccine efficacy wane for a short period, but will no protection after that period
+	# if there is no herd effect, vaccinated people may also be protected after vaccine efficacy wanes for a short period, but will have no protection after that period
 	# assume partial protection 10 more years = two 5-year age group >> lower protection during partial protection, but no protection after partial protection
-	herdProt_set = list(Vdur_20 = c(jcol_endVProtect = 5, jcol_partProtect = 7, relRed_partProtect = 0.82), 
-		Vdur_30 = c(jcol_endVProtect = 7, jcol_partProtect = 7, relRed_partProtect = 0.92)
+	herdProt_set = list(Vdur_20 = c(jcol_endVProtect = 5, jcol_partProtect = 7, relative_partProtect = 0.82), 
+		Vdur_30 = c(jcol_endVProtect = 7, jcol_partProtect = 9, relative_partProtect = 0.92)
 	)
 }
 
-run_2F1M_YN = TRUE;     # <-- check this
+# whether to run the 2F1M strategy
 if (run_2F1M_YN==TRUE){
 	print( sprintf( "Vdur for boys = %d", xVdur_boys_1M) )
 	print(  "run 2F1M. confirm before running" )
@@ -78,9 +75,12 @@ VC_boys_num = length(VC_boys_vec);
 Vdur_num = length(Vdur_vec);
 
 
+library(openxlsx) # write.xlsx
+repmat = pracma::repmat
+
 
 ## settings
-# MSM population
+# MSM subgroup
 prop_Mpenis_MSM = 0.046
 prop_MOPC_MSM = 0.18
 prop_Manus_MSM = 0.4
@@ -88,10 +88,10 @@ prop_Mpenis_FOV = 1 - prop_Mpenis_MSM
 prop_MOPC_FOV = 1 - prop_MOPC_MSM
 prop_Manus_FOV = 1 - prop_Manus_MSM
 
-adj_otherCx_MSM_YN = TRUE 
-Mcancer_adj_vec = c("M_penis", "M_OPC", "M_anus") # noMaleCxFOV adjustment applies to M_anus only;
+adj_otherCx_MSM_YN = TRUE # adjustment if excluding the MSM subgroup
+Mcancer_adj_vec = c("M_penis", "M_OPC", "M_anus")
 
-# function to adjust for attribution from MSM population
+# function to adjust for attribution from MSM subgroup
 fun_CxInc_noAttrib = function(CxInc_wAttrib, CxInc_noVacc, prop_Attrib){
 	# get back the CxInc before accounting for prop_Attrib
 	# CxInc_wAttrib, the CxInc after accounting for prop_Attrib
@@ -105,15 +105,13 @@ fun_CxInc_adjpropMSM_Vacc_MSM = function(CxInc_noVacc, CxInc_Vacc, CxInc_MSM, pr
 
 
 
-## caluclate 
-Yr_eval_vec = 2024:2123; # match the output in Cpp
-Yr_Cpp = 2026; # yr 1 in Cpp output
-Yr_eval_num = max(Yr_eval_vec) - min(Yr_eval_vec) + 1;
+## setting for calculation
+Yr_GNVstart = 2026;
+Yr_eval_num = 100; # year for time horizon
 
-
-# from projection, the age-specific incidence drop become steady after around 70 years
-Yr_eval_nonCeCx_vec = Yr_eval_vec; # may change later
-Yr_eval_nonCeCx_num = length(Yr_eval_nonCeCx_vec);
+MinAge_cohort = 10
+MaxAge_cohort = 79
+Yr_eval_num_bycohort =  (MaxAge_cohort - MinAge_cohort + 1) + Yr_eval_num - 1; # +1 for the number of cohort in Yr1, -1 for excluding the cohort of age 10 in Yr1
 
 
 # screening uptake
@@ -137,22 +135,28 @@ irow_pick = which(data_PSAsumm_init$Vacc_EvaYear<=Yr_eval_num)
 pop_proj_CeCx = matrix(0, length(irow_pick), 1)
 pop_proj_VaccBoy = matrix(0, length(irow_pick), 1)
 for (irow in irow_pick){
-	yr_temp = Yr_Cpp + data_PSAsumm_init$Vacc_EvaYear[irow] - 1
+	yr_temp = Yr_GNVstart + data_PSAsumm_init$Vacc_EvaYear[irow] - 1
 	age_temp = data_PSAsumm_init$CohortEvaAge[irow]
-	irow_datapop = which(data_pop_proj_F$Year==yr_temp)
+	if (yr_temp<=max(data_pop_proj_F$Year)){
+		irow_datapop = which(data_pop_proj_F$Year==yr_temp)
+	} else {
+		irow_datapop = nrow(data_pop_proj_F)
+	}
 	# cohort size among females
 	pop_proj_CeCx[irow] = data_pop_proj_F[irow_datapop, age_temp]
 	# cohort size among males, for cost of vaccinating boys
 	pop_proj_VaccBoy[irow] = data_pop_proj_M[irow_datapop, age_temp]
 }
 
+# SubjAtRisk for CeCx output generated from Cpp
+SubjAtRisk_vec_CeCx = rep(1, nrow(SubjAtRisk_cohort_list[["Female"]]))
 
 
 ## output of cancer incidence for non-cervical cancers
 # 16 columns, each for 5-year age group, from ages 10-14, 15-19, to 80-84, 85+
 
 # potential PSA: attributable fraction, treatment cost, prop_vagina_vulva, 5yrQUtil
-# the PSA for 5yrQUtil should refer to those used for cervical cancer 
+# the PSA for 5yrQUtil refer to those used for cervical cancer 
 
 shname_base = "PSA_%d"; # per iPSA
 nonCeCx_vec = c("F_vagina_vulva", "F_OPC", "F_anus", "M_OPC", "M_penis", "M_anus");
@@ -164,6 +168,7 @@ inonCeCx_adjMSM_vec = match(Mcancer_adj_vec, nonCeCx_vec)
 
 
 # cost; account for cancer treatment cost, costs for specialist consultation, diagnosis and biopsy
+# to be used as fixed value if PSA_costQALY_YN==FALSE
 nonCeCx_cost_raw = c("vagina_vulva"=152846, "OPC"=278088, "anus"=246594, "penis"=193780)
 prop_vagina_vulva = 33/(33+51); # proportion of vagina among (vagina+vulva);
 # relative survival, refer to "SEER - relative survival.xlsx"; account for stage distribution, QALY weight for during (6 months) and post-treatment (4.5 years)
@@ -202,7 +207,7 @@ nonCeCx_agegp_num = nrow(nonCeCx_agegp)
 nonCeCx_agegp_midpt = apply(nonCeCx_agegp,1, mean)
 
 
-# pop data for F/M by age group, do once only; recall: Female = 1, Male = 2
+# population data for F/M by age group, do once only; recall: Female = 1, Male = 2
 # give number of pop in each age group
 # by-cohort pop data
 numAgeYr_AgeGp = 5; # number of age-year / interval of each age group
@@ -213,13 +218,11 @@ discRate_cost = 0.03;
 discRate_health = 0.03;
 discRate_cost_factor = 1/(1+discRate_cost);
 discRate_health_factor = 1/(1+discRate_health);
-discRate_cost_factor_vec = (1/(1+discRate_cost))^((1:Yr_eval_nonCeCx_num)-1)
-discRate_health_factor_vec = (1/(1+discRate_health))^((1:Yr_eval_nonCeCx_num)-1)
+discRate_cost_factor_vec = (1/(1+discRate_cost))^((1:Yr_eval_num)-1)
+discRate_health_factor_vec = (1/(1+discRate_health))^((1:Yr_eval_num)-1)
 
 # LY lost for a death case at deathAge, _accounted_ for discRate_health
 # LYlost_nonCeCxDeath_byAgeGp_disc = fun_LYlost_nonCeCx(disc_factor=discRate_health_factor, deathAge=nonCeCx_agegp_midpt)
-# fun_LYlost_nonCeCx(disc_factor=1/(1+0.000001), deathAge=nonCeCx_agegp_midpt) # test for no discounting
-# fun_LYlost_nonCeCx(disc_factor=1, deathAge=nonCeCx_agegp_midpt) # test for no discounting
 # LY lost for a death case at deathAge, accounted for relative survival
 LYlost_nonCeCxDeath_byAgeGp_disc_relSurv_FM_list = sapply(1:2, simplify=FALSE, function(sex) sapply(nonCeCx_agegp_midpt, function(xmidpt) fun_LYlost_nonCeCx_relSurv(deathAge=xmidpt, maxAge=85, disc_factor=discRate_health_factor, relSurv_mat=data_lifetab_FM_list[[sex]])))
 discRate_health_factor_vec_cohort_LYlost_nonCeCxDeath = (1/(1+discRate_health))^(discRate_import_cohortInfo$Eval_VaccYr-1) # for calculation by-cohort
@@ -227,16 +230,16 @@ discRate_health_factor_vec_cohort_LYlost_nonCeCxDeath = (1/(1+discRate_health))^
 irow_ref_noVacc_cohort = which.max(discRate_import_cohortInfo$CohortAge) # the oldest cohort
 
 # discount rate for costVacc for boys
-yrSince_Yr_Cpp = with(data_PSAsumm_init, Vage_girls-CohortEvaAge + Vacc_EvaYear - 1)
-yrSince_Yr_Cpp[yrSince_Yr_Cpp<0] = 0
-costVacc_discRate_cost_factor_vec = discRate_cost_factor^yrSince_Yr_Cpp;
+yrSince_Yr_GNVstart = with(data_PSAsumm_init, Vage_girls-CohortEvaAge + Vacc_EvaYear - 1)
+yrSince_Yr_GNVstart[yrSince_Yr_GNVstart<0] = 0
+costVacc_discRate_cost_factor_vec = discRate_cost_factor^yrSince_Yr_GNVstart;
 
 
 iPSA_vec = 1:100
 iPSA_num = max(iPSA_vec)
 
 
-# whether to include PSA for individual cost and QALY items for CeCx and nonCeCx
+## whether to include PSA for individual cost and QALY items for CeCx and nonCeCx
 PSA_costQALY_YN = TRUE
 PSA_costQALY_num = iPSA_num;
 PSA_costQALY_num = ifelse(PSA_costQALY_YN, PSA_costQALY_num, 1)
@@ -276,7 +279,7 @@ pScrRate_vec[which(CohortAge_T<=pScrRate_age_progChange)] = pScrRate_base_progCh
 irow_pick = which(data_PSAsumm_init$Vacc_EvaYear<=Yr_eval_num)
 pScrRate_vec = pScrRate_vec[irow_pick];
 
-# nrow_pScrRate_vec = length(pScrRate_vec);
+# costs and QALYs relating to screening
 pScrRate_mat_Cost = do.call(cbind, rep(list(pScrRate_vec), length(jcol_PSAsumm_Cost)))
 pScrRate_mat_QALY = do.call(cbind, rep(list(pScrRate_vec), length(jcol_PSAsumm_QALY)))
 
@@ -301,10 +304,11 @@ QALY_CeCx_treatCancer_array = QALY_array;
 QALY_CeCx_treatCIN_array = QALY_array;
 
 
+## estimate the changes of non-cervical cancer incidence
 # comparing by time; first get the count of rate x pop_size, then compare count at each time
 count_nonCeCx_array = output_template_overall_count;
 
-# first comparing by rate, then multiply by pop_size
+# first compare by rate, then multiply by pop_size
 Caseprev_nonCeCx_array = count_nonCeCx_array # case prevented, compared to time1
 Costsave_nonCeCx_array = Cost_array # cost saved, compared to time1
 QALYgain_nonCeCx_array = QALY_array; # QALY gain, compared to time1
@@ -322,7 +326,6 @@ LYgain_nonCeCxDeath_array_byType = Costsave_nonCeCx_array_byType
 
 
 # age-standardized rate; byTime, one more dimension
-# ASR_nonCeCx_array_byType_byTime = rep(list(array(0, dim=c(VC_boys_num, Vdur_num, iPSA_num, Yr_eval_num))), nonCeCx_num) # cross-sectional
 ASR_nonCeCx_array_byType_byTime = rep(list(array(0, dim=c(VC_boys_num, Vdur_num, iPSA_num, Yr_eval_num_bycohort))), nonCeCx_num) # by-cohort
 Rate_nonCeCx_byTime_byAge_byType = rep(list(array(list(), dim=c(VC_boys_num, Vdur_num, iPSA_num))), nonCeCx_num) 
 Ratediff_nonCeCx_byTime_byAge_byType = Rate_nonCeCx_byTime_byAge_byType
@@ -330,7 +333,7 @@ count_nonCeCx_byTime_byAge_byType = Rate_nonCeCx_byTime_byAge_byType
 Caseprev_nonCeCx_byTime_byAge_byType = Rate_nonCeCx_byTime_byAge_byType
 
 
-	# outcomes when * no MaleCx for FOV *
+	# outcomes when no changes in MaleCx from MSM subgroup for FOV
 	count_nonCeCx_array_noMaleCxFOV = count_nonCeCx_array;
 	Caseprev_nonCeCx_array_noMaleCxFOV = Caseprev_nonCeCx_array;
 
@@ -370,16 +373,16 @@ numDose_Vacc = 2; # number of dose for each individual
 	# incidence rate in 100,000 person-years, from Lin BMC Infect Dis 2010
 	gwarts_incid_100kpersonyr = c(Female=124.86, Male=292.19)
 	gwarts_cost_org = 1100 # ref Cheung 2023
-	gwarts_utilityloss_org = 0.018 # per episode, ref. Woodhall 2011, also used in Jit BMJ 2011; gwarts_utility = 0.91 in many CEAs, such as Cheung 2023, Kim NEJM 2008, Elbasha EID 2007
+	gwarts_utilityloss_org = 0.018 # per episode, ref. Woodhall 2011, also used in Jit BMJ 2011;
 	gwarts_propHPV611 = 0.9; # attributable to HPV-6/11
 	gwarts_agerange_1yr = 20:69;
 	gwarts_agerange = range(gwarts_agerange_1yr);
 	gwarts_agerange_startage_5yr = floor(gwarts_agerange/5)*5;
-	gwarts_age_CostQALY = 30; # assuming that age cohort beyond (/older than) this age would have minimum effect due to vaccination (i.e., up to age 34 for age grouping 30-34)
+	gwarts_age_CostQALY = 30; # assuming that age cohorts older than this age at the current year would have minimum effect due to vaccination (i.e., up to age 34 for age grouping 30-34); not related to the cohorts in younger ages in subsequent years
 	gwarts_idx_5yrAgegp_fromAge10 = match(gwarts_agerange_startage_5yr, seq(10, 85, by=5));
 	gwarts_idx_5yrAgegp_fromAge10 = gwarts_idx_5yrAgegp_fromAge10[1]:gwarts_idx_5yrAgegp_fromAge10[2]
 	gwarts_CostQALY_idx_5yrAgegp_fromAge10 = match(gwarts_age_CostQALY, seq(10, 85, by=5)); 
-	gwarts_Caseprev_age_vec = c(20, 15); # when considering age cohorts that have a higher vaccine uptake (pop-based and opportunistic vaccination); referencing to gwarts_age_CostQALY=30, gwarts_Caseprev_age_vec considers age cohorts of 20-24 for age=20, and 15-19 for age=15
+	gwarts_Caseprev_age_vec = c(20, 15); # when considering age cohorts that have a higher vaccine uptake (pop-based and opportunistic vaccination); i.e., age cohorts of 20-24 for age=20, and 15-19 for age=15
 	gwarts_Caseprev_age_vec_num = length(gwarts_Caseprev_age_vec);
 	gwarts_Caseprev_idx_5yrAgegp_fromAge10_age_list = sapply(gwarts_Caseprev_age_vec, simplify=FALSE, function(xage) match(xage, seq(10, 85, by=5))); 
 	
@@ -397,7 +400,7 @@ numDose_Vacc = 2; # number of dose for each individual
 	Caseprev_gwarts_array_bysex = rep(list(count_nonCeCx_array), sex_num); 
 	Costsave_gwarts_array_bysex = rep(list(Cost_array), sex_num);
 	QALYgain_gwarts_array_bysex = Costsave_gwarts_array_bysex;
-	# initial number of cases of gwarts, should not affected by VC and Vdur; to calculate the relative reduction of gwarts by vaccines
+	# initial number of cases of gwarts, should not be affected by VC and Vdur; to calculate the relative reduction of gwarts by vaccines
 	Caseinit_allAges_gwarts_array_bysex = rep(rep(list(NULL), iPSA_num), sex_num); # cases among all ages
 	Caseinit_gwarts_array_bysex = rep(list(array(0, dim=c(1, 1, iPSA_num))), sex_num); # among age cohorts that are affected by vaccines only
 	relative_Caseprev_gwarts_array_bysex = Caseprev_gwarts_array_bysex;  # relative changes, calculate outside the for-loops
@@ -407,11 +410,8 @@ numDose_Vacc = 2; # number of dose for each individual
 	relative_Caseprev_gwarts_array_bysex_age_list = rep(list(relative_Caseprev_gwarts_array_bysex), gwarts_Caseprev_age_vec_num);
 
 
-# SubjAtRisk for CeCx output generated from Cpp
-SubjAtRisk_vec_CeCx = rep(1, nrow(SubjAtRisk_cohort_list[["Female"]]))
 
-
-
+## start retrieving results
 for (iVdur in 1:Vdur_num){
 for (iVC in 1:VC_boys_num){
 time1 = Sys.time()
@@ -468,7 +468,7 @@ if (iPSA%%10 == 1){
 
 	# assume fixed vaccine cost within each iPSA on natural history, i.e., no PSA_costQALY for vaccine cost
 
-	# vaccine cost is independent of screenUptake
+	# vaccination cost for girls is independent of screen uptake
 	Cost_vaccGirls_temp_wS = with(data_PSAsumm, (numDose_Vacc/numDose_Vacc_Cpp*sumCostVacc)[irow_pick]) # sumCostVacc is discounted
 	Cost_vaccGirls_temp_wS = Cost_vaccGirls_temp_wS / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
 	sum_Cost_vaccGirls_temp = sum(Cost_vaccGirls_temp_wS);
@@ -487,18 +487,15 @@ if (iPSA%%10 == 1){
 	} 
 	Cost_vaccBoys_array_iPSA[[iPSA]] = rep(sum_Cost_vaccBoys_temp, PSA_costQALY_num)
 
-# print("after vaccinate boys"); browser()
 
 if (PSA_costQALY_YN==FALSE){
 	# with screening
-	# Cost_temp_wS = with(data_PSAsumm, (sumCost - sumCostVacc + numDose_Vacc/numDose_Vacc_Cpp*sumCostVacc)[irow_pick]) # combine treatment cost and vaccine cost
-	Cost_temp_wS = with(data_PSAsumm, (sumCostTest + sumCostTx)[irow_pick]) # (sumCost - sumCostVacc)
+	Cost_temp_wS = with(data_PSAsumm, (sumCostTest + sumCostTx)[irow_pick])
 	
 	Cost_temp_wS = Cost_temp_wS / Cpp_cohortsize * pop_proj_CeCx
 	QALY_temp_wS = data_PSAsumm$sumQALY[irow_pick] / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
 
 	# no screening
-	# Cost_temp_noS = with(data_PSAsumm_noS, (sumCost - sumCostVacc + numDose_Vacc/numDose_Vacc_Cpp*sumCostVacc)[irow_pick])
 	Cost_temp_noS = with(data_PSAsumm_noS, (sumCost - sumCostVacc)[irow_pick])
 	
 	Cost_temp_noS = Cost_temp_noS / Cpp_cohortsize * pop_proj_CeCx
@@ -513,7 +510,7 @@ if (PSA_costQALY_YN==FALSE){
 	# PSA_costQALY_YN == FALSE
 } else if (PSA_costQALY_YN == TRUE){
 	 # update PSA Cost & QALY 
-	# Cost = costTest + csotTx = sumCostTx_Cx1, sumCostTx_Cx2, sumCostTx_Cx3, sumCostTx_Cx4, sumCostCIN2Tx, sumCostCIN3Tx, sumCostvisitScreen, sumCostHPVTest, sumCostCytoTest, sumCostColpoTest, sumCostPalliCare_Cx1, sumCostPalliCare_Cx2, sumCostPalliCare_Cx3, sumCostPalliCare_Cx4
+	# Cost = costTest + costTx = sumCostTx_Cx1, sumCostTx_Cx2, sumCostTx_Cx3, sumCostTx_Cx4, sumCostCIN2Tx, sumCostCIN3Tx, sumCostvisitScreen, sumCostHPVTest, sumCostCytoTest, sumCostColpoTest, sumCostPalliCare_Cx1, sumCostPalliCare_Cx2, sumCostPalliCare_Cx3, sumCostPalliCare_Cx4
 	# QALY = QoL_NORMAL, QoL_Init_NormalCyto, QoL_ASCUS, QoL_Colpo_Normal, QoL_CIN1, QoL_CIN2, QoL_CIN3, QoL_Cx1, QoL_Cx2, QoL_Cx3, QoL_Cx4, QoL_CAsurv_Cx1, QoL_CAsurv_Cx2, QoL_CAsurv_Cx3, QoL_CAsurv_Cx4, QoL_HPVneg, QoL_HPVpos, QoL_ASCUS_HPVneg, QoL_RepeatNormalCyto, QoL_LSIL
 	
 	# change sumCostTest, sumCostTx, and sumQALY in data_PSAsumm, data_PSAsumm_noS
@@ -521,25 +518,19 @@ if (PSA_costQALY_YN==FALSE){
 	
 	Cost_PSAsumm_temp_wS = data_PSAsumm[irow_pick, jcol_PSAsumm_Cost] / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
 	Cost_PSAsumm_temp_noS = data_PSAsumm_noS[irow_pick, jcol_PSAsumm_Cost] / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
-	# Cost_PSAsumm_temp = screenUptake*Cost_PSAsumm_temp_wS + (1-screenUptake)*Cost_PSAsumm_temp_noS; # single ScreenUptake
 	Cost_PSAsumm_temp = pScrRate_mat_Cost*Cost_PSAsumm_temp_wS + (1-pScrRate_mat_Cost)*Cost_PSAsumm_temp_noS; # pScrRate_mat_Cost
 	Cost_PSAsumm_temp = colSums(Cost_PSAsumm_temp)
 	
 	QALY_PSAsumm_temp_wS = data_PSAsumm[irow_pick, jcol_PSAsumm_QALY] / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
 	QALY_PSAsumm_temp_noS = data_PSAsumm_noS[irow_pick, jcol_PSAsumm_QALY] / Cpp_cohortsize * pop_proj_CeCx * SubjAtRisk_vec_CeCx;
-	# QALY_PSAsumm_temp = screenUptake*QALY_PSAsumm_temp_wS + (1-screenUptake)*QALY_PSAsumm_temp_noS; # single ScreenUptake
 	QALY_PSAsumm_temp = pScrRate_mat_QALY*QALY_PSAsumm_temp_wS + (1-pScrRate_mat_QALY)*QALY_PSAsumm_temp_noS; # pScrRate_mat_QALY
 	QALY_PSAsumm_temp = colSums(QALY_PSAsumm_temp)
 	
 	Cost_temp_iPSA = repmat(Cost_PSAsumm_temp[jcol_PSAsumm_Cost], m=1, n=PSA_costQALY_num) * input_PSA_CeCx_param_ratio[, jcol_PSAsumm_Cost]
 	Cost_array_iPSA[[iPSA]] = rowSums(Cost_temp_iPSA)
-	# summary( Cost_array_iPSA[[iPSA]]/sum(Cost_PSAsumm_temp) )
 	
 	QALY_temp_iPSA = repmat(QALY_PSAsumm_temp[jcol_PSAsumm_QALY], m=1, n=PSA_costQALY_num) * input_PSA_CeCx_param_ratio[, jcol_PSAsumm_QALY]
 	QALY_array_iPSA[[iPSA]] = rowSums(QALY_temp_iPSA)
-	# summary( QALY_array_iPSA[[iPSA]]/sum(QALY_PSAsumm_temp) ) 
-	# summary( rowSums(QALY_temp_iPSA[,-1])/sum(QALY_PSAsumm_temp[-1]) )
-	# QALY may not show much difference. HS_Normal is the majority; for CeCx, uptake at girls was 85%, HPV infection and cervical lesions/cancers have been reduced
 	
 	# breakdown variables for CeCx, add "drop=FALSE" as jcol_PSAsumm may be one element only
 	Cost_CeCx_screening_array_iPSA[[iPSA]] = rowSums(Cost_temp_iPSA[, jcol_PSAsumm_Cost_screening, drop=FALSE])
@@ -564,13 +555,12 @@ if (PSA_costQALY_YN==FALSE){
 	FM_enterVacc_cohort = list("F"=F_enterVacc_cohort, "M"=M_enterVacc_cohort)
 
 
-## nonCeCx
+## nonCeCx, non-cervical cancers
 nonCeCx_temp_allZero = rep(0, nonCeCx_num);
 # not related to cost/QALY
-count_nonCeCx_temp = nonCeCx_temp_allZero # rep(list(), nonCeCx_num);
+count_nonCeCx_temp = nonCeCx_temp_allZero
 Caseprev_nonCeCx_temp = count_nonCeCx_temp;
 ASR_nonCeCx_temp = rep(list(rep(0, Yr_eval_num)), nonCeCx_num)
-# print("for-inonCeCx, data_pop_cohort"); browser()
 
 for (inonCeCx in 1:nonCeCx_num){
 	xnonCeCx = nonCeCx_vec[inonCeCx];
@@ -585,7 +575,7 @@ for (inonCeCx in 1:nonCeCx_num){
 	shname = paste0("PSA_",iPSA)
 	data_proj_nonCeCx = as.matrix( read.xlsx(paste0(folder_proj_nonCeCx, fname_proj_nonCeCx_pick), sheet=shname, colNames=FALSE) ) # convert to matrix
 
-	data_pop_cohort_nonCeCx_inAgeGp = pracma::repmat(data_pop_cohort_nonCeCx, 1, ncol(data_proj_nonCeCx)) # pop data by cohort, assume no death across age groups
+	data_pop_cohort_nonCeCx_inAgeGp = pracma::repmat(data_pop_cohort_nonCeCx, 1, ncol(data_proj_nonCeCx)) # pop data by cohort
 
 
 	# projected nonCeCx should already be based on the cohort involved
@@ -603,11 +593,10 @@ for (inonCeCx in 1:nonCeCx_num){
 	# preventedCount_nonCeCx_byTime_byAge_temp = pracma::repmat(as.vector(count_nonCeCx[1,]), nrow(count_nonCeCx), 1) - as.matrix(count_nonCeCx) # compare count_nonCeCx at time1; population size data_pop_nonCeCx may affect
 	# calculate the change in incidRate_nonCeCx first, then apply for data_pop_nonCeCx
 	
-	# Casediff, difference in number of cases, (time_1- time_i) x pop_size_time_i; each age group per 100,000 individual
+	# Casediff, difference in number of cases, (time_1- time_i) x pop_size_time_i; each age group per 100,000 individuals
 	
 	irow_ref_noVacc = irow_ref_noVacc_cohort;
 	Ratediff_nonCeCx_byTime_byAge_temp = pracma::repmat(data_proj_nonCeCx[irow_ref_noVacc,], nrow(data_proj_nonCeCx), 1) - as.matrix(data_proj_nonCeCx); # difference in incidence rate
-	# adjust Ratediff so not that incidence rate would not be smaller than without vaccination
 	Ratediff_nonCeCx_byTime_byAge_temp = pmax(Ratediff_nonCeCx_byTime_byAge_temp, 0) # order of x/y in pmax(x,y) would make the output different
 
 	
@@ -621,7 +610,7 @@ for (inonCeCx in 1:nonCeCx_num){
 	Ratediff_nonCeCx_byTime_byAge_byType[[inonCeCx]][[iVC, iVdur, iPSA]] = Ratediff_nonCeCx_byTime_byAge_temp
 
 
-	# (clinical) outcomes of no discounting;
+	# clinical outcomes, no discounting;
 	# case count; case prevented, ASR
 	count_nonCeCx_array_byType[[inonCeCx]][iVC, iVdur, iPSA] = count_nonCeCx_temp[inonCeCx]
 	Caseprev_nonCeCx_array_byType[[inonCeCx]][iVC, iVdur, iPSA] = Caseprev_nonCeCx_temp[inonCeCx]
@@ -643,12 +632,13 @@ for (inonCeCx in 1:nonCeCx_num){
 		
 		Costsave_nonCeCx_temp_type = nonCeCx_cost_raw[str_nonCeCx] * Costsave_nonCeCx_temp_type;
 		QALYgain_nonCeCx_temp_type = nonCeCx_QLost_5yr[xnonCeCx] * QALYgain_nonCeCx_temp_type;
+
 		# PSA_costQALY_YN==FALSE
 	} else if (PSA_costQALY_YN==TRUE){
 
 		Costsave_nonCeCx_temp_type = input_cost_PSA_nonCeCx[[xnonCeCx]] * Costsave_nonCeCx_temp_type;
 		QALYgain_nonCeCx_temp_type = input_util5yr_PSA_nonCeCx[[xnonCeCx]] * QALYgain_nonCeCx_temp_type;
-		LYgain_nonCeCxDeath_temp_type = rep( LYgain_nonCeCxDeath_temp_type, PSA_costQALY_num) # no PSA on relatvie survival (RS), so rep per PSA_costQALY_num
+		LYgain_nonCeCxDeath_temp_type = rep( LYgain_nonCeCxDeath_temp_type, PSA_costQALY_num) # no PSA on relative survival (RS), so rep per PSA_costQALY_num
 
 		# PSA_costQALY_YN==TRUE
 	}
@@ -658,54 +648,33 @@ for (inonCeCx in 1:nonCeCx_num){
 	LYgain_nonCeCxDeath_array_byType_iPSA[[inonCeCx]][[iPSA]] = LYgain_nonCeCxDeath_temp_type
 	
 
-	# set MaleCx as no change if xVC_boys==0, xnonCeCx = MaleCx, and sensitivity analysis of not to account_MaleCx
-	# xVC_MaleCx_vec = VC_boys_vec; 
+	# sensitivity analysis to account for MaleCx among MSM subgroup
 	if (nonCeCx_vec[inonCeCx] %in% Mcancer_adj_vec){ # nonCeCx remains unchanged (& xVC%in%xVC_MaleCx_vec)
 	
-	prop_MaleCx_MSM = c("F_vagina_vulva" = NA, "F_OPC" = NA, "F_anus" = NA, "M_OPC" = prop_MOPC_MSM, "M_penis" = prop_Mpenis_MSM, "M_anus" = prop_Manus_MSM);
+		prop_MaleCx_MSM = c("F_vagina_vulva" = NA, "F_OPC" = NA, "F_anus" = NA, "M_OPC" = prop_MOPC_MSM, "M_penis" = prop_Mpenis_MSM, "M_anus" = prop_Manus_MSM);
 
-	p_HPVattrib = data_HPVattrib[iPSA, xnonCeCx]
+		p_HPVattrib = data_HPVattrib[iPSA, xnonCeCx]
 
-	# different referenec for proj_nonCeCx_noManusFOV
-	# CxInc with vaccination
-	Cx_Vacc_wgt = data_proj_nonCeCx
-	Cx_noVacc = pracma::repmat(Cx_Vacc_wgt[irow_ref_noVacc,], n=nrow(Cx_Vacc_wgt), m=1)
-	Cx_Vacc_noAttrib = fun_CxInc_noAttrib(Cx_Vacc_wgt, Cx_noVacc, p_HPVattrib)
-	
-	# CxInc for male, no female vaccination
-	fname_proj_noMaleCxFOV_pick = sprintf(fname_proj_noMaleCxFOV_base, xVC, xVdur, xnonCeCx)
-	shname = paste0("PSA_",iPSA)
-	Cx_MSM_wgt = as.matrix( read.xlsx(paste0(folder_proj_noMaleCxFOV, fname_proj_noMaleCxFOV_pick), sheet=shname, colNames=FALSE) ) # convert to matrix
-	Cx_MSM_noAttrib = fun_CxInc_noAttrib(Cx_MSM_wgt, Cx_noVacc, p_HPVattrib)
-	
-	data_proj_nonCeCx_noMaleCxFOV = fun_CxInc_adjpropMSM_Vacc_MSM(Cx_noVacc, Cx_Vacc_noAttrib, Cx_MSM_noAttrib, p_HPVattrib, prop_MaleCx_MSM[xnonCeCx])
+		# CxInc with vaccination
+		Cx_Vacc_wgt = data_proj_nonCeCx
+		Cx_noVacc = pracma::repmat(Cx_Vacc_wgt[irow_ref_noVacc,], n=nrow(Cx_Vacc_wgt), m=1)
+		Cx_Vacc_noAttrib = fun_CxInc_noAttrib(Cx_Vacc_wgt, Cx_noVacc, p_HPVattrib)
+		
+		# CxInc for male, no female vaccination
+		fname_proj_noMaleCxFOV_pick = sprintf(fname_proj_noMaleCxFOV_base, xVC, xVdur, xnonCeCx)
+		shname = paste0("PSA_",iPSA)
+		Cx_MSM_wgt = as.matrix( read.xlsx(paste0(folder_proj_noMaleCxFOV, fname_proj_noMaleCxFOV_pick), sheet=shname, colNames=FALSE) ) # convert to matrix
+		Cx_MSM_noAttrib = fun_CxInc_noAttrib(Cx_MSM_wgt, Cx_noVacc, p_HPVattrib)
+		
+		data_proj_nonCeCx_noMaleCxFOV = fun_CxInc_adjpropMSM_Vacc_MSM(Cx_noVacc, Cx_Vacc_noAttrib, Cx_MSM_noAttrib, p_HPVattrib, prop_MaleCx_MSM[xnonCeCx])
 
 
-if (FALSE){
-		# different referenec for proj_nonCeCx_noMaleCxFOV
-		if (xVC==0){
-			# refer to irow_ref_noVacc
-			data_proj_noMaleCx = data_proj_nonCeCx
-			data_proj_nonCeCx_noMaleCxFOV = pracma::repmat(data_proj_noMaleCx[irow_ref_noVacc,], n=nrow(data_proj_noMaleCx), m=1)
-		} else{
-			# get another data_proj
-			fname_proj_noMaleCxFOV_pick = sprintf(fname_proj_noMaleCxFOV_base, xVC, xVdur, xnonCeCx)
-			shname = paste0("PSA_",iPSA)
-			data_proj_noMaleCx = as.matrix( read.xlsx(paste0(folder_proj_noMaleCxFOV, fname_proj_noMaleCxFOV_pick), sheet=shname, colNames=FALSE) ) # convert to matrix
-			data_proj_nonCeCx_noMaleCxFOV = data_proj_noMaleCx
-		}
-}		
 		# update the calculation using data_proj_nonCeCx_noMaleCxFOV
-		# count_nonCeCx_noMaleCxFOV = data_proj_nonCeCx_noMaleCxFOV/100000 * data_pop_nonCeCx; # cross-sectional
-		count_nonCeCx_noMaleCxFOV = data_proj_nonCeCx_noMaleCxFOV/100000 * data_pop_cohort_nonCeCx_inAgeGp; # by-cohort
+		count_nonCeCx_noMaleCxFOV = data_proj_nonCeCx_noMaleCxFOV/100000 * data_pop_cohort_nonCeCx_inAgeGp;
 		count_nonCeCx_temp_noMaleCxFOV = sum(count_nonCeCx_noMaleCxFOV);
 		
-		# count_nonCeCx_byTime_byAge_byType[[inonCeCx]][[iVC, iVdur, iPSA]] = count_nonCeCx_noMaleCxFOV;
-		# Rate_nonCeCx_byTime_byAge_byType[[inonCeCx]][[iVC, iVdur, iPSA]] = data_proj_nonCeCx_noMaleCxFOV
-		
-		# Casediff, difference in number of cases, (time_1- time_i) x pop_size_time_i; each age group per 100,000 individual
+		# Casediff, difference in number of cases, (time_1- time_i) x pop_size_time_i; each age group per 100,000 individuals
 		Ratediff_nonCeCx_byTime_byAge_temp = pracma::repmat(data_proj_nonCeCx_noMaleCxFOV[irow_ref_noVacc,], nrow(data_proj_nonCeCx_noMaleCxFOV), 1) - as.matrix(data_proj_nonCeCx_noMaleCxFOV) # difference in incidence rate
-		# adjust Ratediff so not that incidence rate would not be smaller than without vaccination
 		Ratediff_nonCeCx_byTime_byAge_temp = pmax(Ratediff_nonCeCx_byTime_byAge_temp, 0) # order of x/y in pmax(x,y) would make the output different
 		
 		# diff in rate x popsize
@@ -745,9 +714,9 @@ if (FALSE){
 		QALYgain_nonCeCx_array_byType_noMaleCxFOV_iPSA[[inonCeCx]][[iPSA]] = QALYgain_nonCeCx_temp_type_noMaleCxFOV
 		LYgain_nonCeCxDeath_array_byType_noMaleCxFOV_iPSA[[inonCeCx]][[iPSA]] = LYgain_nonCeCxDeath_temp_type_noMaleCxFOV
 		
-	#
+	# nonCeCx_vec[inonCeCx] %in% Mcancer_adj_vec
 	} else{ 
-		# for other nonCeCx or xVC!=0, the values for noMaleCx_FOV would be the same
+		# for other nonCeCx, the values for noMaleCx_FOV would be the same
 		count_nonCeCx_array_byType_noMaleCxFOV[[inonCeCx]][iVC, iVdur, iPSA] = count_nonCeCx_array_byType[[inonCeCx]][iVC, iVdur, iPSA]
 		Caseprev_nonCeCx_array_byType_noMaleCxFOV[[inonCeCx]][iVC, iVdur, iPSA] = Caseprev_nonCeCx_array_byType[[inonCeCx]][iVC, iVdur, iPSA]
 		ASR_nonCeCx_array_byType_byTime_noMaleCxFOV[[inonCeCx]][iVC, iVdur, iPSA, ] = ASR_nonCeCx_array_byType_byTime[[inonCeCx]][iVC, iVdur, iPSA, ]
@@ -757,12 +726,11 @@ if (FALSE){
 		QALYgain_nonCeCx_array_byType_noMaleCxFOV_iPSA[[inonCeCx]][[iPSA]] = QALYgain_nonCeCx_array_byType_iPSA[[inonCeCx]][[iPSA]]
 		LYgain_nonCeCxDeath_array_byType_noMaleCxFOV_iPSA[[inonCeCx]][[iPSA]] = LYgain_nonCeCxDeath_array_byType_iPSA[[inonCeCx]][[iPSA]]
 		
-	# end not both ( MaleCx & xVC=0 )
-	} # if-else MaleCx & xVC=0
+	} # if-else MaleCx
 
 	
 } # for-inonCeCx
-# print('end for-inonCeCx'); browser()
+
 count_nonCeCx_array[iVC, iVdur, iPSA] = sum(sapply(count_nonCeCx_array_byType, function(x) x[iVC, iVdur, iPSA]))
 Caseprev_nonCeCx_array[iVC, iVdur, iPSA] = sum(sapply(Caseprev_nonCeCx_array_byType, function(x) x[iVC, iVdur, iPSA]))
 
@@ -775,16 +743,14 @@ Caseprev_nonCeCx_array_noMaleCxFOV[iVC, iVdur, iPSA] = sum(sapply(Caseprev_nonCe
 	dataread_HPVincid_list = dataread_HPVincid_list_Vdur_VC_PSA[[iVdur]][[iVC]][[iPSA]]
 	
 	# irow_ref_noVacc, use the same defined for nonCeCx
-	jcol_dataread_HPVincid = 1:16; # refer to HPV-16 only
+	jcol_dataread_HPVincid = 1:16; # indices within each HPV type
 	ncol_dataread_HPVincid_eachHPV = 19; # number of columns for each HPV type; +3 columns for VaccYr, CohortAge, and CalendarYr
-	iHPV_incidChange_gwarts = 1:2
+	iHPV_incidChange_gwarts = 1:2 # use average of HPV-16/18
 	for (isex in 1:sex_num){
 		x_gwarts_incid = gwarts_incid_100kpersonyr[isex]/100000 # gwarts of isex
 		x_popAgeGp_cohort = gwarts_popAgeGp_cohort[[isex]]
 
 		# HPVincid by age group
-		# data_HPVincid_temp = dataread_HPVincid_list[[isex]][, jcol_dataread_HPVincid, drop=FALSE]; # HPV-16 only
-		# use average of HPV-16/18
 		data_HPVincid_temp_list = sapply(1:2, simplify=FALSE, function(iHPVtype) 
 			dataread_HPVincid_list[[isex]][, (iHPVtype-1)*ncol_dataread_HPVincid_eachHPV+jcol_dataread_HPVincid, drop=FALSE]);
 			
@@ -812,7 +778,7 @@ Caseprev_nonCeCx_array_noMaleCxFOV[iVC, iVdur, iPSA] = sum(sapply(Caseprev_nonCe
 							herdProt_set_TT = herdProt_set$Vdur_30
 						}
 						if (jcol_TT > herdProt_set_TT["jcol_endVProtect"]){
-							adjfactor_waning = herdProt_set_TT["relRed_partProtect"]
+							adjfactor_waning = herdProt_set_TT["relative_partProtect"]
 						}
 						if (jcol_TT > herdProt_set_TT["jcol_partProtect"]){
 							adjfactor_waning = 0
@@ -838,7 +804,7 @@ Caseprev_nonCeCx_array_noMaleCxFOV[iVC, iVdur, iPSA] = sum(sapply(Caseprev_nonCe
 		Caseprev_gwarts_temp_0 = (x_gwarts_incid * x_popAgeGp_cohort) * (gwarts_propHPV611*relReduce_HPVincid)
 		Caseprev_gwarts_temp = Caseprev_gwarts_temp_0 * (gwarts_disc_CostQALY>0); # assuming that some age cohorts are more affected by vaccination
 		Caseprev_gwarts_array_bysex[[isex]][iVC, iVdur, iPSA] = sum(Caseprev_gwarts_temp)
-		# restrict to other age cohort
+		# vary by age cohort
 		for (iage_Caseprev_gw in 1:gwarts_Caseprev_age_vec_num){
 			Caseprev_gwarts_temp = Caseprev_gwarts_temp_0 * (gwarts_disc_Caseprev_age_list[[iage_Caseprev_gw]]>0);
 			Caseprev_gwarts_array_bysex_age_list[[iage_Caseprev_gw]][[isex]][iVC, iVdur, iPSA] = sum(Caseprev_gwarts_temp)
@@ -860,8 +826,6 @@ Caseprev_nonCeCx_array_noMaleCxFOV[iVC, iVdur, iPSA] = sum(sapply(Caseprev_nonCe
 			} # for- iage_Caseprev_gw
 		}
 	}
-
-# print( sprintf("End of each iPSA. iPSA = %d", iPSA) ); browser()
 
 } # for-iPSA
 
@@ -894,7 +858,6 @@ for (inonCeCx in 1:nonCeCx_num){
 	LYgain_nonCeCxDeath_array_byType_noMaleCxFOV[[inonCeCx]][iVC, iVdur, ] = do.call(c, LYgain_nonCeCxDeath_array_byType_noMaleCxFOV_iPSA[[inonCeCx]]);
 }
 
-# print('end for-iPSA'); browser()
 # nonCeCx outcomes, overall
 Costsave_nonCeCx_array[iVC, iVdur, ] = Reduce("+", lapply(Costsave_nonCeCx_array_byType, function(xlist) xlist[iVC, iVdur, ]))
 QALYgain_nonCeCx_array[iVC, iVdur, ] = Reduce("+", lapply(QALYgain_nonCeCx_array_byType, function(xlist) xlist[iVC, iVdur, ]))
@@ -927,7 +890,6 @@ outputdate = outputdate_use;
 
 fname_RData_out = sprintf("%scalc_CEA_nonCeCx_%s.RData", output_folder_CEA_new, outputdate)
 save( list=setdiff(ls(), c('data_PSAsumm_list', 'data_PSAsumm_noS_list', 'dataread_HPVincid_list_Vdur_VC_PSA')), file=fname_RData_out )
-# save.image( fname_RData_out )
 
 
 # different calculations for Cost and QALY for nonCeCx
@@ -950,15 +912,13 @@ print_summstat = function(x, form="median", lv=90, big.mark=",", digit=1){
 
 
 # reference vaccine cost, to calculate the relative change in TVC
-Cost_Vacc_perdose_inclAdmin_ref = 1700; # Family Planning Association $1700 for vaccine itself + admin costs (assume $250) >> Cost_Vacc_perdose_new = 1450
+Cost_Vacc_perdose_tender_plusAdmin_USD = 177; # new vaccination cost, vaccine cost based on the tender price plus admin expenses
+Cost_Vacc_perdose_inclAdmin_ref = Cost_Vacc_perdose_tender_plusAdmin_USD*7.8; # new vaccination cost, including admin expenses
 Cost_Vacc_perdose_AdminCost_assumed = 250;
 
-	Cost_Vacc_perdose_tender_plusAdmin_USD = 177; # new vaccination cost, vaccine cost based on the tender price plus admin
-	Cost_Vacc_perdose_inclAdmin_ref = Cost_Vacc_perdose_tender_plusAdmin_USD*7.8; # new vaccination cost
 
 # threshold vaccine cost (TVC) ratio 
 # ** varying cost on vaccination
-Cost_Vacc_perdose_new = Cost_Vacc_perdose;
 Cost_Vacc_perdose_new = Cost_Vacc_perdose_inclAdmin_ref - Cost_Vacc_perdose_AdminCost_assumed; 
 
 consider_Cost_Transport_YN = FALSE; # no Cost_Transport for school-based program
@@ -984,7 +944,7 @@ if (plot_PDF_YN) {pdf(fname_output_pdf, width=num_subplot*5, height=5)}
 
 
 
-calc_gwarts_YN_vec = 0:1
+calc_gwarts_YN_vec = TRUE # c(FALSE, TRUE) # to include scenarios not accounting for genital warts at all (i.e., considering cervical and non-cervical cancers only)
 gwarts_cost_use = gwarts_cost_org;
 gwarts_utilityloss_use = gwarts_utilityloss_org;
 print( sprintf("gwarts_cost_use = %.0f", gwarts_cost_use) )
@@ -995,13 +955,13 @@ gwarts_utilityloss_ratio = gwarts_utilityloss_use/gwarts_utilityloss_org;
 
 ## adjust the proportion of MaleCx that can be prevented by FOV.
 # prop_MaleCx_FOV = MSW / (MSW + MSM), MSW = men who have sex with women (heterosexual)
-# prop_MaleCx_FOV=1 >> all MaleCx cancer can be prevented by FOV; prop_MaleCx_FOV=0 >> no MaleCx cancer can be prevented by FOV (i.e., _noMaleCx_FOV)
-run_SensAnaly_propMaleCx_YN_vec = list(FALSE, c(FALSE, TRUE))[[2]]; # set to TRUE to run the sensitivity analysis of prop_MaleCx_FOV or prop_MaleCx_MSM analysis
+# prop_MaleCx_FOV=1 >> all MaleCx cancer can be prevented by FOV; prop_MaleCx_FOV=0 >> no MaleCx cancer can be prevented by FOV
+run_SensAnaly_propMaleCx_YN_vec = list(FALSE, c(FALSE, TRUE))[[2]]; # set to TRUE to run the sensitivity analysis by prop_MaleCx_FOV or prop_MaleCx_MSM
 
 inonCeCx_Manus = which(nonCeCx_vec=="M_anus");
 inonCeCx_Mpenis = which(nonCeCx_vec=="M_penis");
 inonCeCx_MOPC = which(nonCeCx_vec=="M_OPC");
-inonCeCx_adjMSM_vec = inonCeCx_Manus;
+inonCeCx_adjMSM_vec = NA;
 if (adj_otherCx_MSM_YN){
 	inonCeCx_adjMSM_vec = c(inonCeCx_Manus, inonCeCx_Mpenis, inonCeCx_MOPC);
 }
@@ -1072,7 +1032,7 @@ if (adj_otherCx_MSM_YN){
 
 		} # for-iVC
 		} # for-iVdur
-		# finish calculate the adjustment per for each cost/QALY related items
+		# finish calculating the adjustment for each cost/QALY related item
 		
 		for (inonCeCx in 1:nonCeCx_num){
 			if (!(inonCeCx %in% inonCeCx_adjMSM_vec)){ next}
@@ -1215,7 +1175,7 @@ TVC_array = array(0, dim=dim(Cost_array)) # list(NULL)
 	# diff_Costsave/QALYgain_vsNoVacc; benefit of VCboys
 	VC_boys_comp_T = 1:VC_boys_num; # keep all VC to maintain the indexing for iVC
 	for (iVdur in 1:Vdur_num){
-		# CeCx, _Cost_ is the absolute cost, so the difference (benefit of VCboys) is VCboys_0 - VCboys_others; _QALY_ is the aboslute QALY, the diff (benefit of VCboys) is VCboys_others - VCboys_0
+		# CeCx, _Cost_ is the absolute cost, so the difference (benefit of VCboys) is VCboys_0 - VCboys_others; _QALY_ is the absolute QALY, the diff (benefit of VCboys) is VCboys_others - VCboys_0
 		diff_Cost_CeCx_vsNoVacc_byVdur[[iVdur]] = pracma::repmat(Cost_array[1, iVdur, ], n=VC_boys_num,m=1) - Cost_array[VC_boys_comp_T, iVdur, ]
 		diff_QALYgain_CeCx_vsNoVacc_byVdur[[iVdur]] = QALY_array[VC_boys_comp_T, iVdur, ] - pracma::repmat(QALY_array[1, iVdur, ], n=VC_boys_num,m=1)
 		# CeCx, related to cancer treatment only; higher VCboys has better benefit with fewer CeCx cases, so QALYgain = VCboys_0 - VCboys_others
@@ -1244,19 +1204,15 @@ TVC_array = array(0, dim=dim(Cost_array)) # list(NULL)
 	} # for-iVdur
 	
 
-# direct head to head 
-
-
-# summary() work on matrix/data.frame too. so apply summary_new() to vector only
+# summary() work on matrix/data.frame. so apply summary_new() to vector only
 quant_probs = c(0.5, 0, 0.025, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975, 1)
 summary_new = function(x) { if (TRUE) as.table(c("Mean"=mean(x), quantile(x, quant_probs))) else summary(x) }
 
 
-# gwarts prevented 
-if (run_SensAnaly_propMaleCx_YN==FALSE){ # no need to repeat for SensAnalys_pMaleCx
+# clinical outcomes of genital warts, gwarts prevented; no need to repeat for SensAnalys_pMaleCx
+if (run_SensAnaly_propMaleCx_YN==FALSE){
 if (calc_gwarts_YN==1){
 	for (iVdur in Vdur_vec_comp){
-#	print( "caseprev_gwarts" ); browser();
 		writeLines("")
 		print( "gwarts prevented, compared to irow_ref_noVacc" )
 		print( sprintf("iVdur = %d; xVdur = %d", iVdur, Vdur_vec[iVdur]) )
@@ -1326,8 +1282,6 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 	names_stg = sapply(VC_boys_vec[-1], function(x) sprintf("%dvs%s", x, VC_boys_vec[1]))
 	
 	
-	# Cost_diff_vsNoVacc = do.call(rbind, sapply(1:VC_boys_num, simplify=FALSE, function(x) (Cost_overall_array_iVdur[x,]-Cost_overall_array_iVdur[1,])))
-	# QALY_diff_vsNoVacc = do.call(rbind, sapply(1:VC_boys_num, simplify=FALSE, function(x) (QALY_overall_array_iVdur[x,]-QALY_overall_array_iVdur[1,])))
 	# use repmat to retain the dimension; expand rows only, so change n
 	Cost_diff_vsNoVacc = Cost_overall_array_iVdur - pracma::repmat(Cost_overall_array_iVdur[1,], m=1, n=nrow(Cost_overall_array_iVdur))
 	QALY_diff_vsNoVacc = QALY_overall_array_iVdur - pracma::repmat(QALY_overall_array_iVdur[1,], m=1, n=nrow(Cost_overall_array_iVdur))
@@ -1388,16 +1342,12 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 
 
 	print( "prop%(QALY_diff_vsNoVacc > 0 & Cost_diff_vsNoVacc > 0); Q1, the normal quadrant" )
-#	print( rowMeans(QALY_diff_vsNoVacc_positive_YN & Cost_diff_vsNoVacc_positive_YN) )
 	print( rowMeans(Quadrant1234==1) )
 	print( "prop%(QALY_diff_vsNoVacc < 0 & Cost_diff_vsNoVacc > 0); Q2, the strongly dominated quadrant (unfavored)" )
-#	print( rowMeans(!QALY_diff_vsNoVacc_positive_YN & Cost_diff_vsNoVacc_positive_YN) )
 	print( rowMeans(Quadrant1234==2) )
 	print( "prop%(QALY_diff_vsNoVacc < 0 & Cost_diff_vsNoVacc < 0); Q3, the uncertain quadrant" )
-#	print( rowMeans(!QALY_diff_vsNoVacc_positive_YN & !Cost_diff_vsNoVacc_positive_YN) )
 	print( rowMeans(Quadrant1234==3) )
 	print( "prop%(QALY_diff_vsNoVacc > 0 & Cost_diff_vsNoVacc < 0); Q4, the cost-saving quadrant" )
-#	print( rowMeans(QALY_diff_vsNoVacc_positive_YN & !Cost_diff_vsNoVacc_positive_YN) )
 	print( rowMeans(Quadrant1234==4) )
 
 	print( "n and prop%(ICER_vsNoVacc < WTPthreshold & Q1); cost-effective" )
@@ -1418,7 +1368,8 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 	print( "ICER summary (USD)" )
 	print( ICERsumm_temp/7.8 )
 
-	# scatter plot or hist2d
+	
+	## scatter plot or hist2d
 	plot_hist2d_YN = 1; # 0 for a scatter plot
 	# setting for hist2d
 	hist2d_set = within(list(), {
@@ -1430,12 +1381,11 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 	# setting for scatter
 	pch_plot = 16;
 
-	
 	# point for the mean point of cost and QALY
 	col_meanpt = "orange"; # ifelse(plot_hist2d_YN==1, "blue", "orange");
-	pch_meanpt = 4; # pch=4 for "X", =17 for a "triangle"
+	pch_meanpt = 17; # pch=4 for "X", =17 for a "triangle"
 	cex_meanpt = 2.25; # =3 for a "X", =2.25 for a triangle 
-	lwd_meanpt = 3; # =3 for a "X", =1 for a triangle 
+	lwd_meanpt = 1; # =3 for a "X", =1 for a triangle 
 
 	
 	Cost_plotunit = 1/1000000
@@ -1449,7 +1399,6 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 	xlab_plot = "Difference in discounted QALY" #for GNV vs FOV"
 
 	xlim_plot = range(QALY_diff_vsNoVacc[2:VC_boys_num,])
-	# if (numDose_Vacc_new==2){ xlim_plot = c(max(0,xlim_plot[1]), xlim_plot[2])}
 	xlim_plot = range(pretty(xlim_plot, n=2))
 	ylim_plot = range(Cost_diff_vsNoVacc_plot[2:VC_boys_num,])
 	ylim_plot = range(pretty(ylim_plot, n=2))
@@ -1566,10 +1515,6 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 	TVC_perdose_Temp = TVC_inclAdminfee_Temp - (Cost_GPconsult + consider_Cost_Transport_YN*Cost_Transport) # TVC per dose
 	TVC_array[-1,iVdur,] = TVC_inclAdminfee_Temp
 	
-	if (FALSE){ #if (length(Vdur_vec_comp)==2){ # comparing 1 iVC only 
-		TVC_inclAdminfee_Temp = matrix(TVC_inclAdminfee_Temp, nrow=1)
-		TVC_perdose_Temp = matrix(TVC_perdose_Temp, nrow=1)
-	}
 	print( sprintf("summary stat of TVC_inclAdminfee_array at iVdur=%s", iVdur) )
 	print( t(apply(TVC_inclAdminfee_Temp,1, summary_new)) )
 	print( sprintf("summary stat of TVC_perdose_array at iVdur=%s", iVdur) )
@@ -1704,8 +1649,8 @@ for (iVdur in Vdur_vec_comp){ # Vdur_vec_comp would change for 1-dose GNV vs 2-d
 		
 		# gwarts
 		if (calc_gwarts_YN==1){
-		stat_diff_Costsave_Temp_byVC_gwarts = do.call(rbind, lapply(diff_Costsave_gwarts_vsNoVacc_bySex_byVdur[[iVdur]], function(xmat) quantile(xmat[iVC,], probs=quantile_probs)))
-		stat_diff_QALYgain_Temp_byVC_gwarts = do.call(rbind, lapply(diff_QALYgain_gwarts_vsNoVacc_bySex_byVdur[[iVdur]], function(xmat) quantile(xmat[iVC,], probs=quantile_probs)))
+			stat_diff_Costsave_Temp_byVC_gwarts = do.call(rbind, lapply(diff_Costsave_gwarts_vsNoVacc_bySex_byVdur[[iVdur]], function(xmat) quantile(xmat[iVC,], probs=quantile_probs)))
+			stat_diff_QALYgain_Temp_byVC_gwarts = do.call(rbind, lapply(diff_QALYgain_gwarts_vsNoVacc_bySex_byVdur[[iVdur]], function(xmat) quantile(xmat[iVC,], probs=quantile_probs)))
 		
 		
 			stat_diff_Costsave_Temp_byVC[[iVC]] = rbind(stat_diff_Costsave_Temp_byVC[[iVC]],
@@ -1866,8 +1811,7 @@ sink()
 if (plot_PDF_YN) {dev.off()}
 
 
-if (TRUE){ # save Cost QALY of 2F1M, for 2F1M-GNV vs 1-dose GNV
-			 
+# save Cost QALY of 2F1M, for 2F1M-GNV vs 1-dose GNV
 Cost_2F1M_list = list(
 	Cost_vaccGirls_array_TEMP = Cost_Vacc_adjfactor*Cost_vaccGirls_array,
 	Cost_vaccBoys_array_TEMP = Cost_Vacc_adjfactor_1dose_boys*Cost_vaccBoys_array,
@@ -1915,12 +1859,6 @@ fname_RData_out2 = gsub('.RData', '_CostQALY.RData', fname_RData_out, fixed=TRUE
 save(list=c("Cost_2F1M_list", "QALY_2F1M_list"), file=fname_RData_out2) # use save(), not save.iamge for saving some variables only
 
 
-} # save Cost QALY of 2F1M, for 2F1M-GNV vs 1-dose GNV
-
-
-# export ICERs and TVCs for all simulation
+# export ICERs and TVCs for all simulations
 fname_RData_out3 = gsub('.RData', '_ICER_TVC.RData', fname_RData_out, fixed=TRUE)
 save(list=c("ICERall_out", "TVCall_out", "prop_MaleCx_MSM"), file=fname_RData_out3)
-
-
-

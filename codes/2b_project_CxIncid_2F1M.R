@@ -185,9 +185,7 @@ for (isex in sex_vec_index){
 			HPVattrib_itype_iset = HPVattrib_itype[iset]
 			
 			# use pre-loaded HPVincid matrix instead of reading CSV
-			HPVincid_bymain_read = HPVincid_bymain_PSA[[isex]][[iVaccSet]][[iset]]
-			
-			HPVincid_read = HPVincid_bymain_read
+			HPVincid_read = HPVincid_bymain_PSA[[isex]][[iVaccSet]][[iset]]
 			
 			CxInc_out_all_itimehor = rep(list(NULL), num_time_horizon);
 			CxInc_pRC_out_all_itimehor = rep(list(NULL), num_time_horizon);

@@ -17,12 +17,12 @@ library(openxlsx)
 # output suffix 
 output_suffix = outputdate_string;
 
-output_folder_proj_CxInc_new = gsub("(/){2,}","/", paste(output_folder_proj_CxInc, "2F1M_Vyr30", "/", sep="/"));
+output_folder_proj_CxInc_new = gsub("(/){2,}","/", paste(output_folder_proj_CxInc, "noMaleCx", "/", sep="/"));
 dir.create(output_folder_proj_CxInc_new, showWarnings = FALSE)
 
 
 # Load pre-saved data
-fname_loaddata = paste0(folder_main, "data/HPVmodel_nonCeCx_project_data_2F1M_Vyr30.RData");
+fname_loaddata = paste0(folder_main, "data/HPVmodel_nonCeCx_project_data_noMaleCx.RData");
 load( fname_loaddata )
 # Loaded variables include:
 #   pop_age_1yr_Female, pop_age_1yr_Male
@@ -42,9 +42,13 @@ load( fname_loaddata )
 
 
 # match the vaccination setting
-Vcover_vec = 85;
+Vcover_vec = 0; # Vcover for girls, set as 0 for noG vaccination
 Vcover_M_vec = c(0, 85, 50, 25);
-Vdur_vec = 100; # set 100 for 2F1M
+Vdur_vec = c(100, 20);
+
+# Vcover_vec = 50;
+# cover_M_vec = c(0, 50);
+# Vdur_vec = c(100,20);
 
 VaccSetting_grid = expand.grid(Vcover_vec, Vcover_M_vec, Vdur_vec);
 
@@ -63,7 +67,7 @@ CxInc_type_sex = with(CxInc_type_sex_full, list(Female = Female, # change if nee
 	));
 sex_vec       <- c("Female", "Male")
 sex_vec_short <- substr(sex_vec, 1, 1)
-sex_vec_index <- seq_along(sex_vec)
+sex_vec_index <- seq_along(sex_vec)[2]
 
 # list of the param for each cancer
 param_CxIncfit_CxName <- c(sapply(sex_vec_index, function(i)
@@ -87,9 +91,9 @@ vec_HPV_set = 1:100; # PSA
 
 # parameter estimation
 n_delay = 1;
-n_scaling = 2;
+scaling_age = c(1, 4, 8); # knots of the age to change beta; include 1 for age group 10-14 
+n_scaling = 3;
 n_scaling_age = 0;
-scaling_age = 7;
 n_RRprog = 0;
 n_set = 3;
 paraest_setting = c(n_delay=n_delay, n_scaling=n_scaling, n_scaling_age=n_scaling_age, scaling_age=scaling_age, n_RRprog=n_RRprog, n_set=n_set);
