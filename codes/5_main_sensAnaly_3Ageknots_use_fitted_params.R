@@ -1,17 +1,10 @@
 ### Evaluate the cost-effectiveness of gender-neutral vaccination (GNV) of HPV vaccination
 
-### Flow 
-# 1. HPV infection and cervical cancer
-# 1.1. Obtain parameter sets via calibration to empirical data of cervical cancer incidence, HPV prevalence, and transition (progression/regression) of pre-cancerour health states.
-# 1.2. Use the transmission dynamic model to obtain the time-varying force-of-infection (FOI) and HPV incidence across the time horizon following HPV infection
-# 1.3. Obtain the changes in cervical cancer incidence following HPV vaccination and cervical screening across time horizon 
-# Note1. Outcomes of HPV vaccination on HPV infection and cervical cancer have been studied previously. The respective outcomes are saved in '.RData' file(s).
-# 2. HPV-related non-cervical cancer
-# 2.1. Use a three-component function to link genital HPV incidence (without HPV vaccination) to incidence non-cervical cancer. 
-# Infer parameters for each cancer and for each set of genital HPV incidence generated in (1), via calibration to empirical cancer incidence.
-# 2.2. Estimate the changes in incidence based on the changes in HPV incidence after HPV vaccination (which was generated in (1)).
-# 3. Cost-effectiveness analysis of comparing different vaccination strategies
-# 2dFOV, two-dose female-only vaccination; 2F2M, GNV of two-dose schedule for both girls and boys; 1F1M, GNV of one-dose schedule for both girls and boys; 2F1M, GNV of two-dose schedule for girls and one-dose schedule for boys
+## Sensitivity analysis - 3 age knots for the scaling function to model non-cervical cancer from genital HPV infection
+# note that the parameter setting is changed
+# e.g., n_scaling = 2; scaling_age = c(1, 4, 8);
+# new scripts for fit_CxInc and proj_CxInc
+# number the new scripts with a prefix of "5xx_xx"
 
 
 ## load packages
@@ -36,7 +29,7 @@ update_outputdate = function(shortDate=TRUE) {
 
 ## the main folder / directory to hold the codes and data
 # put the codes and data
-folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # ** <-- change this
+folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # <-- change this
 
 cat( sprintf("'folder_main: %s'", folder_main) )
 if (!dir.exists(folder_main)){
@@ -70,7 +63,7 @@ if (run_parallel_YN){
 }
 
 ## load functions
-fname_fun_fitting = "2_fun_for_fit_CxIncid_validate_byType.R";
+fname_fun_fitting = "5_fun_for_fit_CxIncid_validate_byType_3Ageknots.R";
 source( paste0("codes/", fname_fun_fitting) )
 
 fname_fun_MCMC = "2_function_MCMC_New.R"; # <-- change if needed
@@ -88,11 +81,15 @@ fname_dataload = "HPVmodel_nonCeCx_parInfer_data.RData"
 load( paste0("data/", fname_dataload) )
 
 
+fname_previous_parfitted = "Read_data_HPVmodel_nonCeCx_param_fitted.RData"
+load( paste0("data/", fname_previous_parfitted) );
+
+
 ## outputs 
-output_folder = "output/primary/" # "" if the same directory
+output_folder = "output/sensAnaly_3ageknots/" # "" if the same directory
 outputdate_string = update_outputdate(short=TRUE)
 
-	outputdate_string = "260430"  # the folder that contains the parameter sets that were previously obtained
+		outputdate_string = "260430"
 
 if (!dir.exists(output_folder)){ # create folder 
 	writeLines( sprintf("create output_folder: %s", output_folder) )
@@ -111,7 +108,7 @@ if (!dir.exists(output_folder_fit_CxInc)){ # create folder
 }
 
 if (runMCMC_nonHPVCx_YN){
-	fit_CxIncid_script_vec = sapply(c("F_VV", "F_OPC", "F_anus", "M_penis", "M_OPC", "M_anus"), function(xCx) sprintf("codes/2a_fit_CxIncid_%s.R", xCx))
+	fit_CxIncid_script_vec = sapply(c("F_VV", "F_OPC", "F_anus", "M_penis", "M_OPC", "M_anus"), function(xCx) sprintf("codes/5a_sensAnaly_fit_CxIncid_%s.R", xCx))
 	iiCx_vec_fit_CxInc = 1:length(fit_CxIncid_script_vec);
 	
 	if (!run_parallel_YN){
@@ -127,7 +124,7 @@ if (runMCMC_nonHPVCx_YN){
 	}
 	
 	# combine MCMC results that fitted different cancer incidence
-	source( "codes/2a_fit_CxIncid_mcmc_plots_bymain.R" )
+	source( "codes/5a_fit_CxIncid_mcmc_plots_bymain.R" )
 	
 } # if- runMCMC_nonHPVCx_YN
 
@@ -151,7 +148,7 @@ if (runProj_HPVvacc_nonHPVCx_YN){
 		source( paste0("codes/", fname_fun_fitting) )
 	}
 	
-	proj_CxIncid_script_vec = sapply(c("GNV", "GNV_Vyr30", "2F1M", "2F1M_Vyr30", "noMaleCx", "noMaleCx_Vyr30"), function(xCx) sprintf("codes/2b_project_CxIncid_%s.R", xCx))
+	proj_CxIncid_script_vec = sapply(c("GNV", "GNV_Vyr30", "2F1M", "2F1M_Vyr30", "noMaleCx", "noMaleCx_Vyr30"), function(xCx) sprintf("codes/5b_sensAnaly_project_CxIncid_%s.R", xCx))
 	iiCx_vec_proj_CxIncid = 1:length(proj_CxIncid_script_vec);
 	
 	if (!run_parallel_YN){
@@ -170,14 +167,6 @@ if (runProj_HPVvacc_nonHPVCx_YN){
 
 
 ### 3. Cost-effectiveness analysis
-## flow in CEA_nonCeCx_xx.R
-# outcomes for cervical cancers - load results generated from C++ for the stochastic model that incorporate cervical screening and FOI following vaccination
-# outcomes for non-cervical cancers - load the projected cancer incidence after vaccination
-# compare cost and QALYs across different vaccination schedules
-# print out numerical results in text files (txt)
-# create plots in PDF files
-
-
 if (TRUE){ # whether to clean the space in the R session, to save file for CEA only
 	var_tokeep = c("source_lines","update_outputdate", "run_parallel_YN", "folder_main", "output_folder", "outputdate_string", "output_folder_proj_CxInc")
 	rm(list=setdiff(ls(), var_tokeep))
@@ -189,50 +178,36 @@ if (TRUE){ # whether to clean the space in the R session, to save file for CEA o
 load( "data/CEA_static_data.RData" )
 
 
-# whether to consider herd protection for genital warts (sensitivity analysis)
-# default is TRUE, set at FALSE for sensitivity analysis
-herdProt_GWart_YN_vec = c(TRUE, FALSE);
+output_folder_CEA = gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA/", outputdate_string), sep="/"));
+if (run_parallel_YN){
+	output_folder_CEA = paste0(folder_main, output_folder_CEA); # better to use absolute path when running in parallel
+}
+if (!dir.exists(output_folder_CEA)){ # create folder 
+	writeLines( sprintf("create folder for CEA: %s", output_folder_CEA) )
+	dir.create(output_folder_CEA)
+}
 
-for (herdProt_GWart_YN in herdProt_GWart_YN_vec){
 
+## 3.1. calculate CEA for 2F2M, 1F1M, 2F1M
+# 2F2M and 1F1M - GNV with same schedule on both schoolgirls and schoolboys
+# 2F1M - two-dose schedule for schoolgirls and one-dose schedule for schoolboys
 
-	# output folder for CEA
-	output_folder_CEA = gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA/", outputdate_string), sep="/"));
+CEA_script_vec = sapply(c("GNV", "GNV_Vyr30", "2F1M", "2F1M_Vyr30"), function(xCx) sprintf("codes/3a_CEA_nonCeCx_%s.R", xCx))
+iiCx_vec_CEA_script_vec = 1:length(CEA_script_vec);
 
-	if (herdProt_GWart_YN==FALSE){ # save results in another folder
-		output_folder_CEA = paste0(output_folder_CEA, "_noherdGW");
+if (!run_parallel_YN){
+	# run one-by-one manually
+	for (iiCx in iiCx_vec_CEA_script_vec){
+		source(CEA_script_vec[iiCx])
 	}
-
-	if (run_parallel_YN){
-		output_folder_CEA = paste0(folder_main, output_folder_CEA); # better to use absolute path when running in parallel
-	}
-	if (!dir.exists(output_folder_CEA)){ # create folder 
-		writeLines( sprintf("create folder for CEA: %s", output_folder_CEA) )
-		dir.create(output_folder_CEA)
-	}
+} else {
+	# run in parallel
+	# absolute path, load global variables
+	nullout <- future_sapply(iiCx_vec_CEA_script_vec, simplify=FALSE, future.globals=ls(), future.seed=FALSE, function(iiCx) source( paste0(folder_main, CEA_script_vec[iiCx])) ) 
+}
 
 
-	## 3.1. calculate CEA for 2F2M, 1F1M, 2F1M
-	# 2F2M and 1F1M - GNV with same schedule on both schoolgirls and schoolboys
-	# 2F1M - two-dose schedule for schoolgirls and one-dose schedule for schoolboys
-
-	CEA_script_vec = sapply(c("GNV", "GNV_Vyr30", "2F1M", "2F1M_Vyr30"), function(xCx) sprintf("codes/3a_CEA_nonCeCx_%s.R", xCx))
-	iiCx_vec_CEA_script_vec = 1:length(CEA_script_vec);
-
-	if (!run_parallel_YN){
-		# run one-by-one manually
-		for (iiCx in iiCx_vec_CEA_script_vec){
-			source(CEA_script_vec[iiCx])
-		}
-	} else {
-		# run in parallel
-		# absolute path, load global variables
-		nullout <- future_sapply(iiCx_vec_CEA_script_vec, simplify=FALSE, future.globals=ls(), future.seed=FALSE, function(iiCx) source( paste0(folder_main, CEA_script_vec[iiCx])) ) 
-	}
-
-	# 3.2. compare 2F1M vs 1F1M
-	source( 'codes/3b_comp_2F1M_1dGNV.R') 
-
-} # for- herdProt_GWart_YN  
+# 3.2. compare 2F1M vs 1F1M
+source( 'codes/3b_comp_2F1M_1dGNV.R') 
 
 
