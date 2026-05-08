@@ -92,7 +92,7 @@ load( paste0("data/", fname_dataload) )
 output_folder = "output/primary/" # "" if the same directory
 outputdate_string = update_outputdate(short=TRUE)
 
-	outputdate_string = "260430" 
+	outputdate_string = "260430"  # the folder that contains the parameter sets that were previously obtained
 
 if (!dir.exists(output_folder)){ # create folder 
 	writeLines( sprintf("create output_folder: %s", output_folder) )

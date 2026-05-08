@@ -29,7 +29,7 @@ update_outputdate = function(shortDate=TRUE) {
 
 ## the main folder / directory to hold the codes and data
 # put the codes and data
-folder_main = "C:/Users/hcchoi/Documents/HC/HPVmodel/R/Rcodes_260428/"     # <-- change this
+folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # <-- change this
 
 cat( sprintf("'folder_main: %s'", folder_main) )
 if (!dir.exists(folder_main)){
