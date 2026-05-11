@@ -197,7 +197,7 @@ for (herdProt_GWart_YN in herdProt_GWart_YN_vec){
 	output_folder_CEA = gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA/", outputdate_string), sep="/"));
 
 	if (herdProt_GWart_YN==FALSE){ # save results in another folder
-		output_folder_CEA = paste0(output_folder_CEA, "_noherdGW");
+		output_folder_CEA =  gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA_noherdGW/", outputdate_string), sep="/"));
 	}
 
 	if (run_parallel_YN){

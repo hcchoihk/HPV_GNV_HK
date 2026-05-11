@@ -35,8 +35,8 @@ update_outputdate = function(shortDate=TRUE) {
 
 
 ## the main folder / directory to hold the codes and data
-# put the codes and data
 folder_main = "C:/Users/USER_NAME/Documents/NEW_FOLDER/"     # ** <-- change this
+
 
 cat( sprintf("'folder_main: %s'", folder_main) )
 if (!dir.exists(folder_main)){
@@ -44,7 +44,7 @@ if (!dir.exists(folder_main)){
 }
 
 cat( sprintf("Put the codes and data in 'codes' and 'data', respectively\n") )
-cat( sprintf("Outputs will be saved in 'output'\n") )
+cat( sprintf("Outputs will be saved in 'output_use_fitted_params'\n") )
 
 setwd(folder_main)
 
@@ -56,7 +56,7 @@ setwd(folder_main)
 # An alterative method is to run for-loop in parallel, e.g., future.apply (this may require substantial computer memory)
 # better to use an absolute path when running in parallel
 
-runMCMC_nonHPVCx_YN = FALSE;  # <-- Set FALSE to skip inferring parameters for non-cervical cancers. Use the parameter sets that were previously fitted.
+runMCMC_nonHPVCx_YN = FALSE;  # <-- Skip inferring parameters for non-cervical cancers. Use the parameter sets that were previously fitted.
 run_parallel_YN = TRUE;
 
 seed_use = 1234;
@@ -89,10 +89,10 @@ load( paste0("data/", fname_dataload) )
 
 
 ## outputs 
-output_folder = "output/primary/" # "" if the same directory
+output_folder = "output_use_fitted_params/primary/" # "" if the same directory
 outputdate_string = update_outputdate(short=TRUE)
 
-	outputdate_string = "260430"  # the folder that contains the parameter sets that were previously obtained
+	outputdate_string = "260430"  # <-- when running for using previous fitted parameter sets
 
 if (!dir.exists(output_folder)){ # create folder 
 	writeLines( sprintf("create output_folder: %s", output_folder) )
@@ -143,7 +143,7 @@ if (!dir.exists(output_folder_proj_CxInc)){ # create folder
 }
 
 
-runProj_HPVvacc_nonHPVCx_YN = FALSE
+runProj_HPVvacc_nonHPVCx_YN = TRUE
 if (runProj_HPVvacc_nonHPVCx_YN){
 	if (FALSE){ # whether to clean the space in the R session
 		var_tokeep = c("source_lines","update_outputdate", "run_parallel_YN", "fname_fun_fitting", "folder_main", "output_folder", "outputdate_string", "output_folder_fit_CxInc")
@@ -200,7 +200,7 @@ for (herdProt_GWart_YN in herdProt_GWart_YN_vec){
 	output_folder_CEA = gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA/", outputdate_string), sep="/"));
 
 	if (herdProt_GWart_YN==FALSE){ # save results in another folder
-		output_folder_CEA = paste0(output_folder_CEA, "_noherdGW");
+		output_folder_CEA = gsub("(/){2,}", "/", paste(output_folder, sprintf("%s_CEA_noherdGW/", outputdate_string), sep="/"));
 	}
 
 	if (run_parallel_YN){
