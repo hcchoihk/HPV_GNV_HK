@@ -5,10 +5,10 @@ The folder "output" will save the outputs files. Subfolders "primary" and "sensA
 Outputs for "fit_CxInc", "proj_CxInc", and "CEA" are saved in separate folders, with the date of running the script as suffix of the folder. These folders will be created automatically when running the main script "0_main.R".
 
 
-2. Please change the working folder "folder_main" in "codes/0_main.R" before running the scripts.
+2. Please change the working folder "folder_main" in line 39 in "codes/0_main.R" before running the scripts.
 The scripts require some external R packages. Please install the required packages if needed.
 
 3. Parameter inference could take a long time, depending on the performance of the computer.
-The folder "output/primary/260430_fit_CxInc" contains the parameter sets that are previously inferred, which is saved in the file "260430_nonCeCx_PSApara.xlsx".
+The folder "output_use_fitted_params/primary/260430_fit_CxInc" contains the parameter sets that are previously inferred, which is saved in the file "260430_nonCeCx_PSApara.xlsx".
 To use this file of parameters for projecting cancer incidence and running CEA, one can run the script "0_main_use_fitted_params.R" directly.
 This script skips the codes for estimating parameters for calibrating to non-cervical cancer incidence.

@@ -86,7 +86,7 @@ load( paste0("data/", fname_previous_parfitted) );
 
 
 ## outputs 
-output_folder = "output/sensAnaly_3ageknots/" # "" if the same directory
+output_folder = "output_use_fitted_params/sensAnaly_3ageknots/" # "" if the same directory
 outputdate_string = update_outputdate(short=TRUE)
 
 		outputdate_string = "260430"
